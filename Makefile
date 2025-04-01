@@ -20,13 +20,13 @@ project_dir := "$(current_abs_path)"
 
 # Build Docker image 
 build-only: 
-	docker build -t $(project_image_name) -f Dockerfile $(current_abs_path)
+	docker build -t $(project_image_name) -f Dockerfile "$(current_abs_path)"
 
 run-interactive: build-only	
 	docker run -it -v $(current_abs_path):/project -t $(project_image_name) /bin/bash
 
 run-notebooks: build-only	
-	docker run -v $(current_abs_path):/project -p 8888:8888 -t $(project_image_name) \
+	docker run -v "$(current_abs_path)":/project -p 8888:8888 -t $(project_image_name) \
 	jupyter lab --port=8888 --ip='*' --NotebookApp.token='' --NotebookApp.password='' \
 	--no-browser --allow-root
 
