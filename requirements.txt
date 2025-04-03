@@ -9,3 +9,5 @@ setuptools>=64.0.0
 # project packages
 pandas~=2.1
 
+# App dependencies
+streamlit
