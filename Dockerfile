@@ -14,6 +14,7 @@ WORKDIR /project
 COPY --chown=$NB_UID:$NB_GID src ./src
 COPY --chown=$NB_UID:$NB_GID pyproject.toml .
 COPY --chown=$NB_UID:$NB_GID requirements.txt .
+COPY --chown=$NB_UID:$NB_GID src/utils/app.py ./app.py
 
 # Switch back to the non-root user before installing Python packages
 USER $NB_UID
@@ -24,4 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # install project as an editable package
 RUN pip install -e .
 
-CMD ["/bin/bash"]
+# CMD ["/bin/bash"]
+EXPOSE 8501
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
