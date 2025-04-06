@@ -16,7 +16,8 @@ project_dir := "$(current_abs_path)"
 # include .env
 
 # Build Docker image 
-.PHONY: build-only run-interactive run-notebook
+.PHONY: build-only run-interactive run-notebook \
+		data-process-docker data-pipeline dashboard
 
 # Build Docker image 
 build-only: 
@@ -30,4 +31,9 @@ run-notebooks: build-only
 	jupyter lab --port=8888 --ip='*' --NotebookApp.token='' --NotebookApp.password='' \
 	--no-browser --allow-root
 
+run-data-pipeline: build-only
+	docker run -v $(current_abs_path):/project -t $(project_image_name) \
+	python src/utils/data_cleaning.py
 
+data-pipeline:
+	python src/utils/data_cleaning.py
