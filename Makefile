@@ -17,7 +17,7 @@ STREAMLIT_PORT ?= 8501
 
 # Build Docker image 
 .PHONY: build-only run-interactive run-notebook \
-		data-process-docker data-pipeline run-dashboard
+		data-process-docker data-pipeline run-dashboard dashboard
 
 # Build Docker image 
 build-only: 
@@ -40,5 +40,9 @@ data-pipeline:
 	python src/utils/data_cleaning.py
 
 run-dashboard: build-only
-	docker run -v "$(current_abs_path)":/project -p $(STREAMLIT_PORT):8501 --name $(project_container_name) -t $(project_image_name) \
-	streamlit run /project/dashboard/app.py --server.address=0.0.0.0 --server.port=8501	
+	docker container rm -f $(project_container_name) 2>/dev/null || true
+	docker run --rm -v "$(current_abs_path)":/project -p $(STREAMLIT_PORT):8501 --name $(project_container_name) -t $(project_image_name) \
+	streamlit run /project/app.py --server.address=0.0.0.0 --server.port=8501
+
+dashboard:
+	streamlit run app.py

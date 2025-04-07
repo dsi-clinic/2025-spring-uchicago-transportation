@@ -8,6 +8,7 @@ setuptools>=64.0.0
 
 # project packages
 pandas~=2.1
+altair~=5.0
 
 # App dependencies
 streamlit

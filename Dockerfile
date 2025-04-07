@@ -14,7 +14,7 @@ WORKDIR /project
 COPY --chown=$NB_UID:$NB_GID src ./src
 COPY --chown=$NB_UID:$NB_GID pyproject.toml .
 COPY --chown=$NB_UID:$NB_GID requirements.txt .
-COPY --chown=$NB_UID:$NB_GID src/utils/app.py ./app.py
+COPY --chown=$NB_UID:$NB_GID app.py ./app.py
 
 # Switch back to the non-root user before installing Python packages
 USER $NB_UID
