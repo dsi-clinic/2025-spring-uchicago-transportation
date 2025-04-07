@@ -109,4 +109,4 @@ def add_time_blocks(df):
     time_block_df = df.copy()
     time_block_df["hour"] = time_block_df["arrivalTime"].dt.hour
     time_block_df["timeBlock"] = time_block_df["hour"].apply(get_time_block)
-    return df
+    return time_block_df
