@@ -30,30 +30,37 @@ else:
     print(f"No zip file found in: {data_dir}")
     input_folder = data_dir  # fallback to raw folder
 
-# Step 2: Read NumShuttlesRunning CSV
-try:
-    pattern = "*25-23-24-NumShuttlesRunning*.csv"
+
+def read_csv_files(pattern):
+    """Read all CSV files matching a given pattern in the input folder.
+
+    Parameters:
+        pattern (str): The glob pattern to match files.
+    """
     matches = list(input_folder.glob(pattern))
     if matches:
         shuttle_file = matches[0]
-        print(f"Found NumShuttlesRunning file: {shuttle_file}")
+        print(f"Found file: {shuttle_file}")
         df_shuttles = pd.read_csv(shuttle_file)
-        print("Loaded NumShuttlesRunning data:\n", df_shuttles.head())
+        print("Loaded data:\n", df_shuttles.head())
     else:
         print("No file with 'NumShuttlesRunning' found.")
+
+
+# Read NumShuttlesRunning CSV
+try:
+    pattern = "*25-23-24-NumShuttlesRunning*.csv"
+    NumShuttleRunning = read_csv_files(pattern)
+    NumShuttleRunning.to_csv("NumShuttleRunning.tsv", sep="\t", index=False)
+    print(f"TSV files for {pattern} are created")
 except Exception as e:
     print(f"Error reading NumShuttlesRunning file: {e}")
 
-# Step 3: Read StopEvents CSV
+# Read StopEvents CSV
 try:
     pattern = "*25-23-24-StopEvents*.csv"
-    matches = list(input_folder.glob(pattern))
-    if matches:
-        stop_file = matches[0]
-        print(f"Found StopEvents file: {stop_file}")
-        df_stops = pd.read_csv(stop_file)
-        print("Loaded StopEvents data:\n", df_stops.head())
-    else:
-        print("No file with 'StopEvents' found.")
+    StopEvents = read_csv_files(pattern)
+    StopEvents.to_csv("StopEvents.tsv", sep="\t", index=False)
+    print(f"TSV files for {pattern} are created")
 except Exception as e:
     print(f"Error reading StopEvents file: {e}")
