@@ -16,3 +16,7 @@ Leah:
 - Do stops in high-traffic areas exhibit significantly different waiting patterns compared to stops in less busy areas?
   - Flag for "high traffic area"
 
+Kristen: 
+- Which shuttles have the lowest and highest ridership on average? 
+- What is the average duration of trips across each route (from the first stop to the last stop); is there a lot of variance here too?
+- Which stops on each route have the longest average stop duration? 
