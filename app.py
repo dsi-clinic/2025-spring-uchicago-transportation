@@ -5,10 +5,9 @@ import streamlit as st
 
 from src.utils.load import (
     add_time_blocks,
-    calculate_route_mean_durations,
+    get_route_level_ridership_vs_variance,
     load_stop_events,
     process_arrival_times,
-    get_route_level_ridership_vs_variance
 )
 
 # Set page configuration for Streamlit
@@ -105,19 +104,21 @@ elif page == "Bus Stop Variance Explorer":
         )
         value_column = "arrival_median"
         chart_title = f"Median Time Between Arrivals (mins) - {selected_route}"
-    points = alt.Chart(data).mark_circle(size=120).encode(
-        x="arrival_stdev:Q",
-        y="avg_daily_boardings:Q",
-        color=alt.Color("routeName:N", title="Route"),
-        tooltip=["routeName", "arrival_stdev", "avg_daily_boardings"],
+    points = (
+        alt.Chart(data)
+        .mark_circle(size=120)
+        .encode(
+            x="arrival_stdev:Q",
+            y="avg_daily_boardings:Q",
+            color=alt.Color("routeName:N", title="Route"),
+            tooltip=["routeName", "arrival_stdev", "avg_daily_boardings"],
+        )
     )
 
-    labels = alt.Chart(data).mark_text(
-        align="left", dx=7, dy=-5, fontSize=12
-    ).encode(
-        x="arrival_stdev:Q",
-        y="avg_daily_boardings:Q",
-        text="routeName"
+    labels = (
+        alt.Chart(data)
+        .mark_text(align="left", dx=7, dy=-5, fontSize=12)
+        .encode(x="arrival_stdev:Q", y="avg_daily_boardings:Q", text="routeName")
     )
 
     chart = (points + labels).properties(width=700, height=500).interactive()

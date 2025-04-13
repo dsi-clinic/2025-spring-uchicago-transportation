@@ -111,24 +111,21 @@ def add_time_blocks(df):
     time_block_df["timeBlock"] = time_block_df["hour"].apply(get_time_block)
     return time_block_df
 
+
 def get_route_level_ridership_vs_variance():
-    """
-    Returns one row per route with:
+    """Returns one row per route with:
+
     - average std dev of arrival time
     - average daily ridership (from passengerLoad)
     """
-    df = load_stop_events()
-    _, variances, _ = process_arrival_times(df)
+    data = load_stop_events()
+    _, variances, _ = process_arrival_times(data)
     route_variance = (
-        variances.groupby("routeName")["arrival_stdev"]
-        .mean()
-        .reset_index()
+        variances.groupby("routeName")["arrival_stdev"].mean().reset_index()
     )
-    df["date"] = df["arrivalTime"].dt.date
+    data["date"] = data["arrivalTime"].dt.date
     daily_ridership = (
-        df.groupby(["routeName", "date"])["passengerLoad"]
-        .sum()
-        .reset_index()
+        data.groupby(["routeName", "date"])["passengerLoad"].sum().reset_index()
     )
     avg_daily_ridership = (
         daily_ridership.groupby("routeName")["passengerLoad"]
@@ -136,5 +133,5 @@ def get_route_level_ridership_vs_variance():
         .reset_index()
         .rename(columns={"passengerLoad": "avg_daily_boardings"})
     )
-    result = pd.merge(route_variance, avg_daily_ridership, on="routeName")
+    result = route_variance.merge(avg_daily_ridership, on="routeName")
     return result
