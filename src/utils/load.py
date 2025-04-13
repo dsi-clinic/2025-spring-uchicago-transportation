@@ -38,9 +38,12 @@ def process_arrival_times(stop_events_df):
     # Filter outliers
     lower = df_valid["arrival_diff"].quantile(0.05)
     upper = df_valid["arrival_diff"].quantile(0.95)
-    df_filtered = df_valid[
-        (df_valid["arrival_diff"] >= lower) & (df_valid["arrival_diff"] <= upper)
-    ]
+
+    df_valid["isOutlier"] = df_valid["arrival_diff"].apply(
+        lambda x: x < lower or x > upper if pd.notna(x) else False
+    )
+
+    df_filtered = df_valid[~df_valid["isOutlier"]]
 
     # Calculate standard deviations
     variances = (
@@ -59,6 +62,62 @@ def process_arrival_times(stop_events_df):
     medians = medians.rename(columns={"arrival_diff": "arrival_median"})
 
     return df_filtered, variances, medians
+
+
+def assign_expected_frequencies(stop_events_df):
+    """Add expected frequency flags to stop events based on route and time."""
+    stop_events_df["arrivalTime"] = pd.to_datetime(stop_events_df["arrivalTime"])
+    stop_events_df["arrivalHour"] = stop_events_df["arrivalTime"].dt.hour
+    stop_events_df["arrivalWeekday"] = stop_events_df[
+        "arrivalTime"
+    ].dt.dayofweek  # Monday=0, Sunday=6
+
+    # schedule from UGo site
+    schedule_map = {
+        "Red Line/Arts Block": [
+            ([0, 1, 2, 3, 4], 6.5, 21, 20)
+        ],  # example: M-F 6:30am - 9:00pm
+        "Friend Center/Metra": [([0, 1, 2, 3, 4], 5, 21, 30)],
+        "Drexel": [([0, 1, 2, 3, 4], 5, 10, 10)],
+        "Apostolic": [([0, 1, 2, 3, 4], 5, 10, 10)],
+        "Apostolic/Drexel": [
+            ([0, 1, 2, 3, 4], 10, 15, 15),
+            ([0, 1, 2, 3, 4], 15, 24.5, 10),
+        ],
+        "Midway Metra": [
+            ([0, 1, 2, 3, 4], 5.66, 9.66, 20),
+            ([0, 1, 2, 3, 4], 15.5, 18.66, 20),
+        ],
+        "53rd Street Express": [
+            ([0, 1, 2, 3, 4], 7, 8, 30),
+            ([0, 1, 2, 3, 4], 8, 10.5, 15),
+            ([0, 1, 2, 3, 4], 10.5, 18, 30),
+        ],
+        "Downtown Campus Connector": [([0, 1, 2, 3, 4], 6.5, 22, 20)],
+    }
+
+    def get_expected_freq(row):
+        route = row["routeName"]
+        hour = row["arrivalHour"] + row["arrivalTime"].minute / 60
+        weekday = row["arrivalWeekday"]
+
+        if "South Loop Shuttle" in route:
+            return 60
+        elif any(
+            x in route for x in ["North", "South", "East", "Central", "Regents Express"]
+        ):
+            return 30
+
+        for key, schedules in schedule_map.items():
+            if key in route:
+                for valid_days, start, end, freq in schedules:
+                    if weekday in valid_days and start <= hour < end:
+                        return freq
+        return 30
+
+    stop_events_df["expectedFreq"] = stop_events_df.apply(get_expected_freq, axis=1)
+
+    return stop_events_df
 
 
 def calculate_route_mean_durations():
