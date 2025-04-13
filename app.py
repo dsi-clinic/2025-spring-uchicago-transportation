@@ -5,6 +5,7 @@ import streamlit as st
 
 from src.utils.load import (
     add_time_blocks,
+    assign_expected_frequencies,
     calculate_route_mean_durations,
     load_stop_events,
     process_arrival_times,
@@ -82,6 +83,23 @@ elif page == "Bus Stop Variance Explorer":
     # Load and process data for the Bus Stop Variance Explorer page
     stop_events_df = load_stop_events()
     _, variances, medians = process_arrival_times(stop_events_df)
+    stop_events_df = assign_expected_frequencies(stop_events_df)
+
+    st.sidebar.header("Frequency (in minutes)")
+    available_frequencies = (
+        stop_events_df["expectedFreq"].dropna().astype(int).sort_values().unique()
+    )
+    selected_freq = st.sidebar.selectbox(
+        "Select Expected Frequency:",
+        options=available_frequencies,
+        format_func=lambda x: f"{int(x)} min",
+    )
+
+    stop_events_df = stop_events_df[stop_events_df["expectedFreq"] == selected_freq]
+    variances = variances[
+        variances["routeName"].isin(stop_events_df["routeName"].unique())
+    ]
+    medians = medians[medians["routeName"].isin(stop_events_df["routeName"].unique())]
 
     st.title("Chicago Bus Stop Variance Explorer")
 
