@@ -1,5 +1,7 @@
 """Shared data loading functionality for UGo Transportation Streamlit apps."""
 
+from pathlib import Path
+
 import pandas as pd
 
 
@@ -9,7 +11,10 @@ def load_stop_events():
     Returns:
         pd.DataFrame: Processed stop events data with proper data types.
     """
-    stop_events_df = pd.read_csv("data/ClinicDump-StopEvents.csv")
+    file_path = Path("data/processed/StopEvents.tsv")
+    if not file_path.exists():
+        raise FileNotFoundError(f"Missing file: {file_path.resolve()}")
+    stop_events_df = pd.read_csv(file_path, sep="\t")
     stop_events_df["arrivalTime"] = pd.to_datetime(stop_events_df["arrivalTime"])
     stop_events_df["departureTime"] = pd.to_datetime(stop_events_df["departureTime"])
     stop_events_df["stopDurationSeconds"] = pd.to_numeric(
@@ -24,7 +29,10 @@ def load_stop_events_march():
     Returns:
         pd.DataFrame: Processed stop events data with proper data types.
     """
-    stop_events_df = pd.read_csv("data/ClinicDump-25-23-24-StopEvents.csv")
+    file_path = Path("data/processed/25-23-24-StopEvents.tsv")
+    if not file_path.exists():
+        raise FileNotFoundError(f"Missing file: {file_path.resolve()}")
+    stop_events_df = pd.read_csv(file_path, sep="\t")
     stop_events_df["arrivalTime"] = pd.to_datetime(stop_events_df["arrivalTime"])
     stop_events_df["departureTime"] = pd.to_datetime(stop_events_df["departureTime"])
     stop_events_df["stopDurationSeconds"] = pd.to_numeric(
