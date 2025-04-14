@@ -185,6 +185,38 @@ def add_time_blocks(df):
     time_block_df["timeBlock"] = time_block_df["hour"].apply(get_time_block)
     return time_block_df
 
+def add_traffic_flag(stop_events_df):
+    """Adds a traffic flag (low, mid, high) to each stopName based on event frequency.
+
+    Args:
+        stop_events_df (pd.DataFrame): Stop events data.
+
+    Returns:
+        pd.DataFrame: Same dataframe with new 'trafficFlag' column.
+    """
+    stop_counts = stop_events_df["stopName"].value_counts()
+    low_thresh = stop_counts.quantile(0.33)
+    mid_thresh = stop_counts.quantile(0.66)
+
+    def flag(count):
+        if count <= low_thresh:
+            return "low"
+        elif count <= mid_thresh:
+            return "mid"
+        else:
+            return "high"
+
+    flag_df = (
+        stop_counts.rename("eventCount")
+        .reset_index()
+        .rename(columns={"index": "stopName"})
+    )
+    flag_df["trafficFlag"] = flag_df["eventCount"].apply(flag)
+
+    stop_events_df = stop_events_df.merge(
+        flag_df[["stopName", "trafficFlag"]], on="stopName", how="left"
+    )
+    return stop_events_df
 
 def time_extraction():
     """Extract month number, week number, and day of week."""

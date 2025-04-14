@@ -6,6 +6,7 @@ import streamlit as st
 
 from src.utils.load import (
     add_time_blocks,
+    add_traffic_flag,
     aggregate_by_time,
     get_route_level_ridership_vs_variance,
     assign_expected_frequencies,
@@ -40,8 +41,9 @@ page = st.sidebar.radio(
 if page == "Rider Waiting Patterns":
     stop_events_df = load_stop_events()
     stop_events_df = add_time_blocks(stop_events_df)
+    stop_events_df = add_traffic_flag(stop_events_df)
 
-    # Sidebar filters for stop names and time blocks
+    # Sidebar filters
     st.sidebar.header("Filter Options")
     selected_stops = st.sidebar.multiselect(
         "Select Stop(s):",
@@ -53,40 +55,105 @@ if page == "Rider Waiting Patterns":
         options=stop_events_df["timeBlock"].unique(),
         default=stop_events_df["timeBlock"].unique(),
     )
+    show_traffic = st.sidebar.checkbox("Show Traffic Flag Analysis")
 
-    # Filter data based on selected options
+    # Filter data
     filtered_df = stop_events_df[
         (stop_events_df["timeBlock"].isin(selected_time_blocks))
         & (stop_events_df["stopName"].isin(selected_stops) if selected_stops else True)
     ]
 
-    # Main content for Rider Waiting Patterns page
     st.title("🚍 UGo Shuttle Rider Waiting Patterns")
     st.markdown(
         "Analyze stop wait times by time of day and location to support better route and scheduling decisions."
     )
-
     st.markdown(f"### Showing data for {len(filtered_df)} stop events")
 
-    # Visualization: Average Stop Duration by Stop
-    st.write("#### ⏱️ Average Stop Duration by Stop")
+    # ⏱️ Average Stop Duration by Stop
+    st.subheader("⏱️ Average Stop Duration by Stop")
     avg_duration_by_stop = (
         filtered_df.groupby("stopName")["stopDurationSeconds"]
         .mean()
-        .sort_values(ascending=False)
+        .reset_index()
+        .sort_values("stopDurationSeconds", ascending=False)
     )
-    st.bar_chart(avg_duration_by_stop)
+    bar_stop = (
+        alt.Chart(avg_duration_by_stop)
+        .mark_bar()
+        .encode(
+            x=alt.X(
+                "stopDurationSeconds:Q",
+                title="Avg Stop Duration (sec)",
+                scale=alt.Scale(zero=True),
+            ),
+            y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
+            tooltip=["stopName", "stopDurationSeconds"],
+        )
+        .properties(width=600, height=400)
+    )
+    st.altair_chart(bar_stop, use_container_width=True)
 
-    # Visualization: Average Stop Duration by Time of Day
-    st.write("#### ⏰ Average Stop Duration by Time of Day")
-    avg_duration_by_time = filtered_df.groupby("timeBlock")[
-        "stopDurationSeconds"
-    ].mean()
-    st.bar_chart(avg_duration_by_time)
+    # ⏰ Average Stop Duration by Time of Day
+    st.subheader("⏰ Average Stop Duration by Time of Day")
+    avg_duration_by_time = (
+        filtered_df.groupby("timeBlock")["stopDurationSeconds"].mean().reset_index()
+    )
+    bar_time = (
+        alt.Chart(avg_duration_by_time)
+        .mark_bar()
+        .encode(
+            x=alt.X("timeBlock:N", title="Time of Day"),
+            y=alt.Y(
+                "stopDurationSeconds:Q",
+                title="Avg Stop Duration (sec)",
+                scale=alt.Scale(zero=True),
+            ),
+            tooltip=["timeBlock", "stopDurationSeconds"],
+        )
+        .properties(width=600, height=400)
+    )
+    st.altair_chart(bar_time, use_container_width=True)
 
-    # Optionally show raw filtered data
+    # 📊 Optional raw data
     if st.checkbox("Show filtered raw data"):
         st.dataframe(filtered_df)
+
+    # 🚦 Optional traffic flag analysis
+    if show_traffic:
+        st.subheader("🚦 Number of Stops by Traffic Level")
+
+        bar_chart = (
+            alt.Chart(stop_events_df)
+            .mark_bar()
+            .encode(
+                x=alt.X("trafficFlag:N", sort=["low", "mid", "high"]),
+                y=alt.Y("count()", title="Number of Stops"),
+                tooltip=["trafficFlag", "count()"],
+            )
+            .properties(title="Stops by Traffic Level", width=400, height=300)
+        )
+        st.altair_chart(bar_chart, use_container_width=True)
+
+        st.subheader("📈 Stop Duration by Traffic Level")
+
+        scatter_chart = (
+            alt.Chart(filtered_df)
+            .mark_point(filled=True, size=60, opacity=0.6)
+            .encode(
+                x=alt.X(
+                    "trafficFlag:N", title="Traffic Level", sort=["low", "mid", "high"]
+                ),
+                y=alt.Y(
+                    "stopDurationSeconds:Q",
+                    title="Stop Duration (sec)",
+                    scale=alt.Scale(zero=True),
+                ),
+                color=alt.Color("trafficFlag:N", title="Traffic Level"),
+                tooltip=["stopName", "stopDurationSeconds", "trafficFlag", "timeBlock"],
+            )
+            .properties(title="Scatter of Stop Durations", width=600, height=300)
+        )
+        st.altair_chart(scatter_chart, use_container_width=True)
 
 elif page == "Bus Stop Variance Explorer":
     # Load and process data for the Bus Stop Variance Explorer page
