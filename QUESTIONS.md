@@ -19,4 +19,10 @@ Leah:
 Kristen: 
 - Which shuttles have the lowest and highest ridership on average? 
 - What is the average duration of trips across each route (from the first stop to the last stop); is there a lot of variance here too?
-- Which stops on each route have the longest average stop duration? 
+- Which stops on each route have the longest average stop duration?
+
+Luna:
+- How does weather impact average shuttle ridership across routes and weekdays?
+- Does ridership spike during exam weeks or major campus events?
+- Are UChicago shuttles more heavily used for morning arrivals or evening departures?
+- Are there repeating “micro-patterns” within the day (e.g., strong 8am & 5pm peaks)?
