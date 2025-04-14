@@ -7,6 +7,8 @@ import streamlit as st
 from src.utils.load import (
     add_time_blocks,
     aggregate_by_time,
+    get_route_level_ridership_vs_variance,
+    assign_expected_frequencies,
     calculate_route_mean_durations,
     load_stop_events,
     process_arrival_times,
@@ -90,6 +92,23 @@ elif page == "Bus Stop Variance Explorer":
     # Load and process data for the Bus Stop Variance Explorer page
     stop_events_df = load_stop_events()
     _, variances, medians = process_arrival_times(stop_events_df)
+    stop_events_df = assign_expected_frequencies(stop_events_df)
+
+    st.sidebar.header("Frequency (in minutes)")
+    available_frequencies = (
+        stop_events_df["expectedFreq"].dropna().astype(int).sort_values().unique()
+    )
+    selected_freq = st.sidebar.selectbox(
+        "Select Expected Frequency:",
+        options=available_frequencies,
+        format_func=lambda x: f"{int(x)} min",
+    )
+
+    stop_events_df = stop_events_df[stop_events_df["expectedFreq"] == selected_freq]
+    variances = variances[
+        variances["routeName"].isin(stop_events_df["routeName"].unique())
+    ]
+    medians = medians[medians["routeName"].isin(stop_events_df["routeName"].unique())]
 
     st.title("Chicago Bus Stop Variance Explorer")
 
@@ -112,31 +131,56 @@ elif page == "Bus Stop Variance Explorer":
         )
         value_column = "arrival_median"
         chart_title = f"Median Time Between Arrivals (mins) - {selected_route}"
-
-    chart = (
+    points = (
         alt.Chart(data)
-        .mark_bar()
+        .mark_circle(size=120)
         .encode(
-            x=alt.X(f"{value_column}:Q", title="Minutes"),
-            y=alt.Y("stopName:N", title="Stop Name", sort="-x"),
-            tooltip=["stopName", value_column],
+            x="arrival_stdev:Q",
+            y="avg_daily_boardings:Q",
+            color=alt.Color("routeName:N", title="Route"),
+            tooltip=["routeName", "arrival_stdev", "avg_daily_boardings"],
         )
-        .properties(width=700, height=500, title=chart_title)
     )
+
+    labels = (
+        alt.Chart(data)
+        .mark_text(align="left", dx=7, dy=-5, fontSize=12)
+        .encode(x="arrival_stdev:Q", y="avg_daily_boardings:Q", text="routeName")
+    )
+
+    chart = (points + labels).properties(width=700, height=500).interactive()
 
     st.altair_chart(chart, use_container_width=True)
 
 elif page == "Route Duration Summary":
-    # Load data for the Route Duration Summary page
-    data = calculate_route_mean_durations()
+    data = get_route_level_ridership_vs_variance()
 
     st.title("UGo Shuttle Route Summary")
 
-    # Display mean durations
-    st.header("Mean Stop Duration Seconds by Route")
-    st.write("Below is a table showing mean stop duration for each route.")
-    st.dataframe(data)
+    st.write("### Route-Level Scatter: Variance vs. Daily Ridership")
+    st.markdown(
+        "Each point represents a route. The X-axis shows how variable the arrival times are, "
+        "while the Y-axis reflects average daily boardings."
+    )
 
+    chart = (
+        alt.Chart(data)
+        .mark_circle(size=120)
+        .encode(
+            x=alt.X("arrival_stdev:Q", title="Avg Arrival Time Std Dev (mins)"),
+            y=alt.Y("avg_daily_boardings:Q", title="Avg Daily Boardings"),
+            color=alt.Color("routeName:N", title="Route"),
+            tooltip=["routeName", "arrival_stdev", "avg_daily_boardings"],
+        )
+        .properties(width=700, height=500)
+        .interactive()
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+    if st.checkbox("Show route-level data"):
+        st.dataframe(data)    
+    
 
 elif page == "Time Series Analysis":
     st.title("🚍 Visualizing Intra-Month Variability in Passenger Load")
