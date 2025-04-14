@@ -140,4 +140,5 @@ venv.bak/
 *.avro
 *.csv
 *.zipfile
+*.zip
 *.tsv
