@@ -36,13 +36,8 @@ run-data-pipeline: build-only
 	docker run -v $(current_abs_path):/project -t $(project_image_name) \
 	python src/utils/data_cleaning.py
 
-data-pipeline:
-	python src/utils/data_cleaning.py
-
 run-dashboard: build-only
 	docker container rm -f $(project_container_name) 2>/dev/null || true
 	docker run --rm -v "$(current_abs_path)":/project -p $(STREAMLIT_PORT):8501 --name $(project_container_name) -t $(project_image_name) \
 	streamlit run /project/app.py --server.address=0.0.0.0 --server.port=8501
 
-dashboard:
-	streamlit run app.py

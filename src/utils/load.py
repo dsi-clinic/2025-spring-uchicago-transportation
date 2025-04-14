@@ -185,6 +185,7 @@ def add_time_blocks(df):
     time_block_df["timeBlock"] = time_block_df["hour"].apply(get_time_block)
     return time_block_df
 
+
 def add_traffic_flag(stop_events_df):
     """Adds a traffic flag (low, mid, high) to each stopName based on event frequency.
 
@@ -217,6 +218,7 @@ def add_traffic_flag(stop_events_df):
         flag_df[["stopName", "trafficFlag"]], on="stopName", how="left"
     )
     return stop_events_df
+
 
 def time_extraction():
     """Extract month number, week number, and day of week."""
@@ -258,6 +260,7 @@ def aggregate_by_time(df):
     )
     return agg_df
 
+
 def get_route_level_ridership_vs_variance():
     """Returns one row per route with:
 
@@ -281,4 +284,3 @@ def get_route_level_ridership_vs_variance():
     )
     result = route_variance.merge(avg_daily_ridership, on="routeName")
     return result
-

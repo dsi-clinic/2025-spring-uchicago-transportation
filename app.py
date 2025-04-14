@@ -8,9 +8,8 @@ from src.utils.load import (
     add_time_blocks,
     add_traffic_flag,
     aggregate_by_time,
-    get_route_level_ridership_vs_variance,
     assign_expected_frequencies,
-    calculate_route_mean_durations,
+    get_route_level_ridership_vs_variance,
     load_stop_events,
     process_arrival_times,
     time_extraction,
@@ -246,8 +245,8 @@ elif page == "Route Duration Summary":
     st.altair_chart(chart, use_container_width=True)
 
     if st.checkbox("Show route-level data"):
-        st.dataframe(data)    
-    
+        st.dataframe(data)
+
 
 elif page == "Time Series Analysis":
     st.title("🚍 Visualizing Intra-Month Variability in Passenger Load")
