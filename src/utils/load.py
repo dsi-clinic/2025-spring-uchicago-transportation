@@ -169,3 +169,28 @@ def add_time_blocks(df):
     time_block_df["hour"] = time_block_df["arrivalTime"].dt.hour
     time_block_df["timeBlock"] = time_block_df["hour"].apply(get_time_block)
     return time_block_df
+
+
+def get_route_level_ridership_vs_variance():
+    """Returns one row per route with:
+
+    - average std dev of arrival time
+    - average daily ridership (from passengerLoad)
+    """
+    data = load_stop_events()
+    _, variances, _ = process_arrival_times(data)
+    route_variance = (
+        variances.groupby("routeName")["arrival_stdev"].mean().reset_index()
+    )
+    data["date"] = data["arrivalTime"].dt.date
+    daily_ridership = (
+        data.groupby(["routeName", "date"])["passengerLoad"].sum().reset_index()
+    )
+    avg_daily_ridership = (
+        daily_ridership.groupby("routeName")["passengerLoad"]
+        .mean()
+        .reset_index()
+        .rename(columns={"passengerLoad": "avg_daily_boardings"})
+    )
+    result = route_variance.merge(avg_daily_ridership, on="routeName")
+    return result
