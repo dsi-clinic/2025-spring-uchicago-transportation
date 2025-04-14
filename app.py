@@ -1,15 +1,18 @@
 """Multipage Streamlit app for UGo Transportation analysis."""
 
 import altair as alt
+import pandas as pd
 import streamlit as st
 
 from src.utils.load import (
     add_time_blocks,
+    aggregate_by_time,
     get_route_level_ridership_vs_variance,
     assign_expected_frequencies,
     calculate_route_mean_durations,
     load_stop_events,
     process_arrival_times,
+    time_extraction,
 )
 
 # Set page configuration for Streamlit
@@ -25,7 +28,12 @@ st.sidebar.image(
 # Navigation options
 page = st.sidebar.radio(
     "Select Analysis Page:",
-    ["Rider Waiting Patterns", "Bus Stop Variance Explorer", "Route Duration Summary"],
+    [
+        "Rider Waiting Patterns",
+        "Bus Stop Variance Explorer",
+        "Route Duration Summary",
+        "Time Series Analysis",
+    ],
 )
 
 # Load data based on selected page to avoid duplicate loading
@@ -171,4 +179,51 @@ elif page == "Route Duration Summary":
     st.altair_chart(chart, use_container_width=True)
 
     if st.checkbox("Show route-level data"):
-        st.dataframe(data)
+        st.dataframe(data)    
+    
+
+elif page == "Time Series Analysis":
+    st.title("🚍 Visualizing Intra-Month Variability in Passenger Load")
+    st.markdown(
+        "This visualization displays weekly ridership trends for a selected transit route and month."
+    )
+    # Convert arrivalTime to datetime and extract the day of the week and week number.
+    data = time_extraction()
+    # Group by week and day, and sum passengerLoad.
+    agg_df = aggregate_by_time(data)
+
+    month_order = ["January", "February", "March"]
+    month_options = [m for m in month_order if m in agg_df["month"].unique()]
+
+    # Streamlit Visualization
+    selected_route = st.selectbox("Select Route", agg_df["routeName"].unique())
+    selected_month = st.selectbox("Select Month", month_options)
+
+    # Filter data
+    day_order = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+    filtered = agg_df[
+        (agg_df["routeName"] == selected_route) & (agg_df["month"] == selected_month)
+    ].copy()
+
+    # 🛠️ Make 'week_day' an ordered categorical
+    filtered["week_day"] = pd.Categorical(
+        filtered["week_day"], categories=day_order, ordered=True
+    )
+
+    # Pivot and sort index
+    pivot = filtered.pivot_table(
+        index="week_day", columns="month_week", values="passengerLoad"
+    )
+    pivot = pivot.sort_index()
+    pivot.columns = [f"Week {int(w)}" for w in pivot.columns]
+
+    st.write("#### ⏱️ Sum of Riders Given Route and Date")
+    st.line_chart(pivot)
