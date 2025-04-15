@@ -20,10 +20,6 @@ st.set_page_config(page_title="UGo Shuttle Analysis Dashboard", layout="wide")
 
 # Create a sidebar for navigation
 st.sidebar.title("UGo Shuttle Analysis")
-st.sidebar.image(
-    "https://transportation.uchicago.edu/wp-content/uploads/2021/09/UchiShuttle-Logo-New.jpg",
-    width=200,
-)
 
 # Navigation options
 page = st.sidebar.radio(
