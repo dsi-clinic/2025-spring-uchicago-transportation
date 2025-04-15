@@ -2,20 +2,21 @@
 
 import zipfile
 from pathlib import Path
-
+import glob
 import pandas as pd
 
-
-def read_csv_files(pattern):
-    """Read all CSV files matching a given pattern in the input folder.
+def read_csv_files(matches):
+    """Read all CSV files matching a given pattern in the input folder by finding the file recursively.
 
     Parameters:
-        pattern (str): The glob pattern to match files.
+        matches (str): The glob pattern to match files.
     """
-    df_shuttles = pd.read_csv(pattern)
+    if not matches:
+        raise FileNotFoundError("Target CSV not found in extracted zip content.")
+    df_shuttles = pd.read_csv(matches[0])
     print(f"Loaded {df_shuttles.shape[0]} rows of data")
     if df_shuttles.shape[0] == 0:
-        raise Exception(f"No rows loaded from {pattern}")
+        raise Exception(f"No rows loaded from {matches[0]}")
     return df_shuttles
 
 
@@ -38,50 +39,50 @@ if __name__ == "__main__":
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(unzipped_dir)
             input_folder = unzipped_dir
-            print(f"Extracted contents to: {output_dir}")
+            print(f"Extracted contents to: {unzipped_dir}")
         except zipfile.BadZipFile:
             print(f"Error: The file at {zip_path} is not a valid zip file.")
             exit(1)
     else:
         print(f"No zip file found in: {data_dir}")
-        input_folder = data_dir  # fallback to raw folder
+        input_folder = data_dir
 
     # Read 25-23-24-NumShuttlesRunning CSV
     try:
-        pattern = "ClinicDump-25-23-24-NumShuttlesRunning.csv"
-        NumShuttleRunning = read_csv_files(unzipped_dir / pattern)
+        matches = list(unzipped_dir.rglob("ClinicDump-25-23-24-NumShuttlesRunning.csv"))
+        NumShuttleRunning = read_csv_files(matches)
         NumShuttleRunning.to_csv(
             output_dir / "25-23-24-NumShuttleRunning.tsv", sep="\t", index=False
         )
-        print(f"TSV files for {pattern} are created")
+        print(f"TSV files for {matches} are created")
     except Exception as e:
         print(f"Error reading NumShuttlesRunning file: {e}")
 
     # Read 25-24-24-StopEvents CSV
     try:
-        pattern = "ClinicDump-25-23-24-StopEvents.csv"
-        StopEvents = read_csv_files(unzipped_dir / pattern)
+        matches = list(unzipped_dir.rglob("ClinicDump-25-23-24-StopEvents.csv"))
+        StopEvents = read_csv_files(matches)
         StopEvents.to_csv(output_dir / "25-23-24-StopEvents.tsv", sep="\t", index=False)
-        print(f"TSV files for {pattern} are created")
+        print(f"TSV files for {matches} are created")
     except Exception as e:
         print(f"Error reading StopEvents file: {e}")
 
     # Read NumShuttlesRunning CSV
     try:
-        pattern = "ClinicDump-NumShuttlesRunning.csv"
-        NumShuttleRunning = read_csv_files(unzipped_dir / pattern)
+        matches = list(unzipped_dir.rglob("ClinicDump-NumShuttlesRunning.csv"))
+        NumShuttleRunning = read_csv_files(matches)
         NumShuttleRunning.to_csv(
             output_dir / "NumShuttleRunning.tsv", sep="\t", index=False
         )
-        print(f"TSV files for {pattern} are created")
+        print(f"TSV files for {matches} are created")
     except Exception as e:
         print(f"Error reading NumShuttlesRunning file: {e}")
 
     # Read StopEvents CSV
     try:
-        pattern = "ClinicDump-StopEvents.csv"
-        StopEvents = read_csv_files(unzipped_dir / pattern)
+        matches = list(unzipped_dir.rglob("ClinicDump-StopEvents.csv"))
+        StopEvents = read_csv_files(matches)
         StopEvents.to_csv(output_dir / "StopEvents.tsv", sep="\t", index=False)
-        print(f"TSV files for {pattern} are created")
+        print(f"TSV files for {matches} are created")
     except Exception as e:
         print(f"Error reading StopEvents file: {e}")
