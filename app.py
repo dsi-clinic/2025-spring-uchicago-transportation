@@ -197,24 +197,17 @@ elif page == "Bus Stop Variance Explorer":
         )
         value_column = "arrival_median"
         chart_title = f"Median Time Between Arrivals (mins) - {selected_route}"
-    points = (
+
+    chart = (
         alt.Chart(data)
-        .mark_circle(size=120)
+        .mark_bar()
         .encode(
-            x="arrival_stdev:Q",
-            y="avg_daily_boardings:Q",
-            color=alt.Color("routeName:N", title="Route"),
-            tooltip=["routeName", "arrival_stdev", "avg_daily_boardings"],
+            x=alt.X(f"{value_column}:Q", title="Minutes"),
+            y=alt.Y("stopName:N", title="Stop Name", sort="-x"),
+            tooltip=["stopName", value_column],
         )
+        .properties(width=700, height=500, title=chart_title)
     )
-
-    labels = (
-        alt.Chart(data)
-        .mark_text(align="left", dx=7, dy=-5, fontSize=12)
-        .encode(x="arrival_stdev:Q", y="avg_daily_boardings:Q", text="routeName")
-    )
-
-    chart = (points + labels).properties(width=700, height=500).interactive()
 
     st.altair_chart(chart, use_container_width=True)
 
