@@ -251,7 +251,9 @@ def time_extraction():
 def aggregate_by_time(df):
     """Aggregate passenger load by month, week, weekday, and route."""
     agg_df = (
-        df.groupby(["month", "month_week", "week_day", "routeName","date"])["passengerLoad"]
+        df.groupby(["month", "month_week", "week_day", "routeName", "date"])[
+            "passengerLoad"
+        ]
         .sum()
         .reset_index()
     )
