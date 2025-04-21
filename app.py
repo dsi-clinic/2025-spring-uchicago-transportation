@@ -268,7 +268,7 @@ elif page == "Time Series Analysis":
         (agg_df["routeName"] == selected_route) & (agg_df["month"] == selected_month)
     ].copy()
 
-    # 🛠️ Make 'week_day' an ordered categorical
+    # Make 'week_day' an ordered categorical
     filtered["week_day"] = pd.Categorical(
         filtered["week_day"], categories=day_order, ordered=True
     )
@@ -280,5 +280,36 @@ elif page == "Time Series Analysis":
     pivot = pivot.sort_index()
     pivot.columns = [f"Week {int(w)}" for w in pivot.columns]
 
-    st.write("#### ⏱️ Sum of Riders Given Route and Date")
-    st.line_chart(pivot)
+    # Melt pivoted data back into long format for Altair
+    long_df = pivot.reset_index().melt(id_vars="week_day", var_name="week", value_name="passengerLoad")
+
+    # Merge to get actual dates back
+    date_map = filtered[["week_day", "month_week", "date"]].drop_duplicates()
+    date_map["week"] = "Week " + date_map["month_week"].astype(int).astype(str)
+
+    # Merge with long_df to get date for tooltip
+    merged = pd.merge(long_df, date_map, on=["week_day", "week"], how="left")
+
+    # Altair chart with hover tooltip
+    chart = (
+        alt.Chart(merged)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("week_day:N", sort=day_order, title="Day of the Week"),
+            y=alt.Y("passengerLoad:Q", title="Passenger Load"),
+            color="week:N",
+            tooltip=[
+                alt.Tooltip("week_day:N", title="Weekday"),
+                alt.Tooltip("week:N", title="Week"),
+                alt.Tooltip("date:T", title="Date"),
+                alt.Tooltip("passengerLoad:Q", title="Passenger Load")
+            ]
+        )
+        .properties(title="⏱️ Sum of Riders Given Route and Date")
+        .interactive()
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+    if st.checkbox("Show route-level data"):
+        st.dataframe(agg_df)
