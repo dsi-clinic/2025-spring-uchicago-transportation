@@ -231,6 +231,7 @@ def add_traffic_flag(stop_events_df):
 def time_extraction():
     """Extract month number, week number, and day of week."""
     shuttle_data = load_stop_events_march()
+    shuttle_data["date"] = shuttle_data["arrivalTime"].dt.date
     # extract the day of week (e.g., Mon, Tue...)
     shuttle_data["week_day"] = shuttle_data["arrivalTime"].dt.day_name()
     # extract month of the date
@@ -250,7 +251,9 @@ def time_extraction():
 def aggregate_by_time(df):
     """Aggregate passenger load by month, week, weekday, and route."""
     agg_df = (
-        df.groupby(["month", "month_week", "week_day", "routeName"])["passengerLoad"]
+        df.groupby(["month", "month_week", "week_day", "routeName", "date"])[
+            "passengerLoad"
+        ]
         .sum()
         .reset_index()
     )
