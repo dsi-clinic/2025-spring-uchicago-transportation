@@ -33,7 +33,7 @@ run-notebooks: build-only
 	--no-browser --allow-root
 
 run-data-pipeline: build-only
-	docker run -v $(current_abs_path):/project -t $(project_image_name) \
+	docker run -v "$(current_abs_path)":/project -t $(project_image_name) \
 	python src/utils/data_cleaning.py
 
 run-dashboard: build-only
