@@ -62,6 +62,7 @@ def process_arrival_times(stop_events_df):
     lower = df_valid["arrival_diff"].quantile(0.05)
     upper = df_valid["arrival_diff"].quantile(0.95)
 
+    df_valid = df_valid.copy()
     df_valid["isOutlier"] = df_valid["arrival_diff"].apply(
         lambda x: x < lower or x > upper if pd.notna(x) else False
     )
