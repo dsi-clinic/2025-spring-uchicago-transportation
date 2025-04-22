@@ -174,6 +174,19 @@ elif page == "Bus Stop Variance Explorer":
 
     st.title("Chicago Bus Stop Variance Explorer")
 
+    st.markdown("""
+    This page investigates the consistency of arrivals of a given stop on a given bus route.
+
+    Calculated based on time between consecutive stop events at each stop for every route.
+
+    - Use the dropdown selectbox to select a specific route, and view all the stops on that route.
+    - Use the sidebar to filter by expected frequency of arrivals.
+        - Ex. the South Loop Shuttle is expected every 60 minutes, you would find it under the 60 min view.
+        - Some routes have different expected frequencies during different times of day, so they appear under multiple filters.
+    - Explore patterns in standard deviation and median wait times across UGo shuttles.
+
+    """)
+
     routes = variances["routeName"].unique()
     selected_route = st.selectbox("Select a route:", sorted(routes))
 
