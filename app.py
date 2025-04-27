@@ -27,7 +27,7 @@ page = st.sidebar.radio(
     [
         "Rider Waiting Patterns",
         "Bus Stop Variance Explorer",
-        "Route Duration Summary",
+        #"Route Duration Summary",
         "Time Series Analysis",
     ],
 )
@@ -221,6 +221,7 @@ elif page == "Bus Stop Variance Explorer":
     st.altair_chart(chart, use_container_width=True)
 
 elif page == "Route Duration Summary":
+    pass
     data = get_route_level_ridership_vs_variance()
 
     st.title("UGo Shuttle Route Summary")
