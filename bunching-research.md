@@ -25,7 +25,7 @@ Bunching = successive vehicles on a route arriving closer together than they are
 - **Supply-side**:
   - Traffic congestion, signal delays, and inconsistent driver behavior contribute to irregular bus intervals.
 - **Operations**:
-  - Problems such as initial dispatching errors and inappropriately scheduled frequency intervals (should xyz bus actually run more/less often?).
+  - Problems such as initial dispatching errors and inappropriately scheduled frequency intervals (should xyz bus actually run more/less often?)
 
 ## How has bunching been addressed in the past?
 
