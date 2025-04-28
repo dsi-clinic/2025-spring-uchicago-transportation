@@ -39,13 +39,13 @@ Bunching = successive vehicles on a route arriving closer together than they are
 - **Dynamic Waiting Times**:
   - Holding buses at stops when gaps become too small; conversely, deploying spare buses when gaps become too large.
 
-## Consequences of bunching
+## Consequences of Bunching
 
 - Increased waiting times and overcrowded buses diminish service reliability and user satisfaction.
 - Bunching leads to uneven workload distribution among buses:
   - Some buses are overcrowded while others are underutilized.
 
-## References
+## Sources
 
 - [Bus bunching comprehensive review (Taylor & Francis)](https://www.tandfonline.com/doi/full/10.1080/01441647.2024.2313969#abstract)
 - [Bus bunching solutions overview (SpringerLink)](https://link.springer.com/article/10.1007/s42524-024-0297-1)
