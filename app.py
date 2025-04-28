@@ -29,6 +29,7 @@ page = st.sidebar.radio(
         "Bus Stop Variance Explorer",
         "Route Duration Summary",
         "Time Series Analysis",
+        "Bunching Exploration",
     ],
 )
 
@@ -328,3 +329,79 @@ elif page == "Time Series Analysis":
 
     if st.checkbox("Show route-level data"):
         st.dataframe(agg_df)
+
+elif page == "Bunching Exploration":
+    # Load the data
+    stop_events_df = load_stop_events()
+    stop_events_df = assign_expected_frequencies(stop_events_df)
+
+    # Compute back-looking headway
+    headways_df = (
+        stop_events_df.assign(date=stop_events_df["arrivalTime"].dt.date)
+        .sort_values(["routeName", "stopName", "date", "arrivalTime"])
+        .assign(
+            prev_arrival=lambda d: d.groupby(["routeName", "stopName", "date"])[
+                "arrivalTime"
+            ].shift(1)
+        )
+        .assign(
+            headway_min=lambda d: (
+                d["arrivalTime"] - d["prev_arrival"]
+            ).dt.total_seconds()
+            / 60
+        )
+        .dropna(subset=["headway_min", "expectedFreq"])
+    )
+
+    # Trim outliers using IQR
+    def iqr_trim(
+        df: pd.DataFrame,
+        grp_col: str = "expectedFreq",
+        val_col: str = "headway_min",
+        k: float = 1.5,
+    ) -> pd.DataFrame:
+        """Drop rows lying outside [Q1 − k·IQR, Q3 + k·IQR] within each group."""
+        quartiles = df.pivot_table(
+            index=grp_col,
+            values=val_col,
+            aggfunc=[lambda x: x.quantile(0.25), lambda x: x.quantile(0.75)],
+        )
+        quartiles.columns = ["q1", "q3"]
+        quartiles["iqr"] = quartiles["q3"] - quartiles["q1"]
+        quartiles["lower"] = quartiles["q1"] - k * quartiles["iqr"]
+        quartiles["upper"] = quartiles["q3"] + k * quartiles["iqr"]
+        out = df.merge(
+            quartiles[["lower", "upper"]],
+            left_on=grp_col,
+            right_index=True,
+            how="left",
+        )
+        mask = (out[val_col] >= out["lower"]) & (out[val_col] <= out["upper"])
+        return out.loc[mask].drop(columns=["lower", "upper"])
+
+    trimmed_df = iqr_trim(headways_df, k=1.5)
+    # Box and Whisker plot
+    trimmed_df["expectedFreq"] = trimmed_df["expectedFreq"].astype(int)
+    freq_order = sorted(trimmed_df["expectedFreq"].unique())  # [10,15,20,30,60]
+
+    box = (
+        alt.Chart(trimmed_df)
+        .mark_boxplot(extent="min-max")
+        .encode(
+            x=alt.X(
+                "expectedFreq:O", title="Scheduled Frequency (min)", sort=freq_order
+            ),
+            y=alt.Y("headway_min:Q", title="Observed Gap Since Previous Bus (min)"),
+            color=alt.Color("expectedFreq:O", legend=None),
+        )
+        .properties(
+            width=750,
+            height=450,
+            title="Observed Gaps vs. Scheduled Frequency (IQR-trimmed)",
+        )
+    )
+
+    st.altair_chart(box, use_container_width=True)
+
+    with st.expander("Show headway table (IQR-trimmed)"):
+        st.dataframe(trimmed_df)
