@@ -313,10 +313,6 @@ elif page == "Time Series Analysis":
         use_container_width=True,
     )
 
-    st.altair_chart(chart, use_container_width=True)
-
-    if st.checkbox("Show route-level data"):
-        st.dataframe(agg_df)
 
 elif page == "Bunching Exploration":
     # Load the data
