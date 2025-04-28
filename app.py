@@ -9,7 +9,6 @@ from src.utils.load import (
     add_traffic_flag,
     aggregate_by_time,
     assign_expected_frequencies,
-    get_route_level_ridership_vs_variance,
     load_stop_events,
     process_arrival_times,
     time_extraction,
@@ -25,7 +24,8 @@ st.sidebar.title("UGo Shuttle Analysis")
 page = st.sidebar.radio(
     "Select Analysis Page:",
     [
-        "Rider Waiting Patterns",
+        "Rider Waiting Patterns by Stop",
+        "Rider Waiting Patterns by Traffic Level",
         "Bus Stop Variance Explorer",
         # "Route Duration Summary",
         "Time Series Analysis",
@@ -33,243 +33,244 @@ page = st.sidebar.radio(
     ],
 )
 
-# Load data based on selected page to avoid duplicate loading
-if page == "Rider Waiting Patterns":
+
+if page == "Rider Waiting Patterns by Stop":
     stop_events_df = load_stop_events()
     stop_events_df = add_time_blocks(stop_events_df)
     stop_events_df = add_traffic_flag(stop_events_df)
 
-    # Sidebar filters
-    st.sidebar.header("Filter Options")
-    selected_stops = st.sidebar.multiselect(
-        "Select Stop(s):",
-        options=sorted(stop_events_df["stopName"].dropna().unique()),
-        default=[],
-    )
-    selected_time_blocks = st.sidebar.multiselect(
-        "Select Time of Day:",
+    # In-page filters
+    selected_time_block = st.selectbox(
+        "Select Time Period for Analysis:",
         options=stop_events_df["timeBlock"].unique(),
-        default=stop_events_df["timeBlock"].unique(),
+        index=0,
+        help="Choose morning, afternoon, etc.",
     )
-    show_traffic = st.sidebar.checkbox("Show Traffic Flag Analysis")
+    selected_stops = st.multiselect(
+        "Filter Stops Based on Location:",
+        options=sorted(stop_events_df["stopName"].dropna().unique()),
+        default=sorted(stop_events_df["stopName"].dropna().unique()),
+        help="Pick one or more stops.",
+    )
 
-    # Filter data
+    # Apply filters
     filtered_df = stop_events_df[
-        (stop_events_df["timeBlock"].isin(selected_time_blocks))
+        (stop_events_df["timeBlock"] == selected_time_block)
         & (stop_events_df["stopName"].isin(selected_stops) if selected_stops else True)
     ]
 
-    st.title("🚍 UGo Shuttle Rider Waiting Patterns")
-    st.markdown(
-        "Analyze stop wait times by time of day and location to support better route and scheduling decisions."
-    )
-    st.markdown(f"### Showing data for {len(filtered_df)} stop events")
+    # Convert to minutes
+    filtered_df["stopDurationMinutes"] = filtered_df["stopDurationSeconds"] / 60
 
-    # ⏱️ Average Stop Duration by Stop
-    st.subheader("⏱️ Average Stop Duration by Stop")
-    avg_duration_by_stop = (
-        filtered_df.groupby("stopName")["stopDurationSeconds"]
+    # ── Outlier detection ──
+    threshold = filtered_df["stopDurationMinutes"].quantile(0.95)
+    core_df = filtered_df[filtered_df["stopDurationMinutes"] <= threshold]
+    outliers_df = filtered_df[filtered_df["stopDurationMinutes"] > threshold]
+
+    # Display
+    st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Stop)")
+    st.markdown(f"### Showing data for {len(filtered_df)} stop events")
+    st.markdown("This chart shows the average time buses spend at each stop.")
+
+    # ⏱️ Average Stop Duration by Stop (excluding outliers)
+    avg_by_stop = (
+        core_df.groupby("stopName")["stopDurationMinutes"]
         .mean()
         .reset_index()
-        .sort_values("stopDurationSeconds", ascending=False)
+        .sort_values("stopDurationMinutes", ascending=False)
     )
     bar_stop = (
-        alt.Chart(avg_duration_by_stop)
+        alt.Chart(avg_by_stop)
         .mark_bar()
         .encode(
-            x=alt.X(
-                "stopDurationSeconds:Q",
-                title="Avg Stop Duration (sec)",
-                scale=alt.Scale(zero=True),
-            ),
+            x=alt.X("stopDurationMinutes:Q", title="Avg Duration (min)"),
             y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
-            tooltip=["stopName", "stopDurationSeconds"],
+            tooltip=["stopName", "stopDurationMinutes"],
         )
-        .properties(width=600, height=400)
+        .properties(width=800, height=500)
     )
     st.altair_chart(bar_stop, use_container_width=True)
 
-    # ⏰ Average Stop Duration by Time of Day
-    st.subheader("⏰ Average Stop Duration by Time of Day")
-    avg_duration_by_time = (
-        filtered_df.groupby("timeBlock")["stopDurationSeconds"].mean().reset_index()
+    # Average Stop Duration by Time of Day (excluding outliers)
+    avg_by_time = (
+        core_df.groupby("timeBlock")["stopDurationMinutes"].mean().reset_index()
     )
     bar_time = (
-        alt.Chart(avg_duration_by_time)
+        alt.Chart(avg_by_time)
         .mark_bar()
         .encode(
             x=alt.X("timeBlock:N", title="Time of Day"),
-            y=alt.Y(
-                "stopDurationSeconds:Q",
-                title="Avg Stop Duration (sec)",
-                scale=alt.Scale(zero=True),
-            ),
-            tooltip=["timeBlock", "stopDurationSeconds"],
+            y=alt.Y("stopDurationMinutes:Q", title="Avg Duration (min)"),
+            tooltip=["timeBlock", "stopDurationMinutes"],
         )
-        .properties(width=600, height=400)
+        .properties(width=800, height=500)
     )
     st.altair_chart(bar_time, use_container_width=True)
 
-    # 📊 Optional raw data
-    if st.checkbox("Show filtered raw data"):
-        st.dataframe(filtered_df)
-
-    # 🚦 Optional traffic flag analysis
-    if show_traffic:
-        st.subheader("🚦 Number of Stops by Traffic Level")
-
-        bar_chart = (
-            alt.Chart(stop_events_df)
-            .mark_bar()
-            .encode(
-                x=alt.X("trafficFlag:N", sort=["low", "mid", "high"]),
-                y=alt.Y("count()", title="Number of Stops"),
-                tooltip=["trafficFlag", "count()"],
+    # Show the outliers in an expander
+    if not outliers_df.empty:
+        with st.expander(
+            f"🔍 Show {len(outliers_df)} outlier events (> {threshold:.1f} min)"
+        ):
+            st.dataframe(
+                outliers_df[
+                    ["stopName", "timeBlock", "stopDurationMinutes"]
+                ].sort_values("stopDurationMinutes", ascending=False)
             )
-            .properties(title="Stops by Traffic Level", width=400, height=300)
-        )
-        st.altair_chart(bar_chart, use_container_width=True)
 
-        st.subheader("📈 Stop Duration by Traffic Level")
 
-        scatter_chart = (
-            alt.Chart(filtered_df)
-            .mark_point(filled=True, size=60, opacity=0.6)
-            .encode(
-                x=alt.X(
-                    "trafficFlag:N", title="Traffic Level", sort=["low", "mid", "high"]
-                ),
-                y=alt.Y(
-                    "stopDurationSeconds:Q",
-                    title="Stop Duration (sec)",
-                    scale=alt.Scale(zero=True),
-                ),
-                color=alt.Color("trafficFlag:N", title="Traffic Level"),
-                tooltip=["stopName", "stopDurationSeconds", "trafficFlag", "timeBlock"],
-            )
-            .properties(title="Scatter of Stop Durations", width=600, height=300)
+elif page == "Rider Waiting Patterns by Traffic Level":
+    stop_events_df = load_stop_events()
+    stop_events_df = add_time_blocks(stop_events_df)
+    stop_events_df = add_traffic_flag(stop_events_df)
+
+    # In-page time filter
+    selected_time_block = st.selectbox(
+        "Select Time Period for Analysis:",
+        options=stop_events_df["timeBlock"].unique(),
+        index=0,
+        help="Choose morning, afternoon, etc.",
+    )
+
+    # Filter by selected time block
+    filtered_df = stop_events_df[stop_events_df["timeBlock"] == selected_time_block]
+
+    # Convert to minutes
+    filtered_df["stopDurationMinutes"] = filtered_df["stopDurationSeconds"] / 60
+
+    # ── Flag 95th‐pct outliers ──
+    thr = filtered_df["stopDurationMinutes"].quantile(0.95)
+    filtered_df["isOutlier"] = filtered_df["stopDurationMinutes"] > thr
+
+    # Show count of outliers
+    st.markdown(
+        f"> **Note:** {filtered_df['isOutlier'].sum()} events exceed "
+        f"{thr:.1f} min and are flagged as outliers."
+    )
+
+    st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Traffic Level)")
+    st.markdown(f"### Showing data for {len(filtered_df)} stop events")
+    st.markdown("Number of stops and stop durations by traffic level.")
+
+    # 🚦 Number of Stops by Traffic Level
+    st.subheader("🚦 Number of Stops by Traffic Level")
+    bar_chart = (
+        alt.Chart(filtered_df)
+        .mark_bar()
+        .encode(
+            x=alt.X(
+                "trafficFlag:N", sort=["low", "mid", "high"], title="Traffic Level"
+            ),
+            y=alt.Y("count():Q", title="Number of Stops"),
+            tooltip=["trafficFlag", "count()"],
         )
-        st.altair_chart(scatter_chart, use_container_width=True)
+        .properties(width=900, height=500)
+    )
+    st.altair_chart(bar_chart, use_container_width=True)
+
+    # 📈 Stop Duration by Traffic Level (outliers in red)
+    st.subheader("📈 Stop Duration by Traffic Level")
+    scatter_chart = (
+        alt.Chart(filtered_df)
+        .mark_point(filled=True, size=60, opacity=0.6)
+        .encode(
+            x=alt.X(
+                "trafficFlag:N", sort=["low", "mid", "high"], title="Traffic Level"
+            ),
+            y=alt.Y("stopDurationMinutes:Q", title="Stop Duration (min)"),
+            color=alt.Color(
+                "isOutlier:N",
+                scale=alt.Scale(domain=[False, True], range=["steelblue", "firebrick"]),
+                legend=alt.Legend(title="Outlier"),
+            ),
+            tooltip=[
+                "stopName",
+                "stopDurationMinutes",
+                "trafficFlag",
+                "timeBlock",
+                "isOutlier",
+            ],
+        )
+        .properties(
+            title="Stop Durations by Traffic Level (outliers in red)",
+            width=900,
+            height=500,
+        )
+    )
+    st.altair_chart(scatter_chart, use_container_width=True)
+
 
 elif page == "Bus Stop Variance Explorer":
-    # Load and process data for the Bus Stop Variance Explorer page
     stop_events_df = load_stop_events()
     _, variances, medians = process_arrival_times(stop_events_df)
     stop_events_df = assign_expected_frequencies(stop_events_df)
 
     st.sidebar.header("Frequency (in minutes)")
-    available_frequencies = (
+    frequencies = (
         stop_events_df["expectedFreq"].dropna().astype(int).sort_values().unique()
     )
     selected_freq = st.sidebar.selectbox(
         "Select Expected Frequency:",
-        options=available_frequencies,
-        format_func=lambda x: f"{int(x)} min",
+        options=frequencies,
+        format_func=lambda x: f"{x} min",
     )
 
     stop_events_df = stop_events_df[stop_events_df["expectedFreq"] == selected_freq]
-    variances = variances[
-        variances["routeName"].isin(stop_events_df["routeName"].unique())
-    ]
-    medians = medians[medians["routeName"].isin(stop_events_df["routeName"].unique())]
+    variances = variances[variances["routeName"].isin(stop_events_df["routeName"])]
+    medians = medians[medians["routeName"].isin(stop_events_df["routeName"])]
 
     st.title("Chicago Bus Stop Variance Explorer")
-
-    st.markdown("""
-    This page investigates the consistency of arrivals of a given stop on a given bus route.
-
-    Calculated based on time between consecutive stop events at each stop for every route.
-
-    - Use the dropdown selectbox to select a specific route, and view all the stops on that route.
-    - Use the sidebar to filter by expected frequency of arrivals.
-        - Ex. the South Loop Shuttle is expected every 60 minutes, you would find it under the 60 min view.
-        - Some routes have different expected frequencies during different times of day, so they appear under multiple filters.
-    - Explore patterns in standard deviation and median wait times across UGo shuttles.
-
-    """)
-
+    st.markdown(
+        """
+        This page investigates consistency of arrivals by route and stop.
+        """
+    )
     routes = variances["routeName"].unique()
     selected_route = st.selectbox("Select a route:", sorted(routes))
-
-    view_choice = st.radio(
-        "View by:", ["Standard Deviation of Wait Time", "Median Wait Time"]
-    )
-
-    if view_choice == "Standard Deviation of Wait Time":
+    view = st.radio("View by:", ["Standard Deviation of Wait Time", "Median Wait Time"])
+    if view == "Standard Deviation of Wait Time":
         data = variances[variances["routeName"] == selected_route].sort_values(
             by="arrival_stdev", ascending=False
         )
-        value_column = "arrival_stdev"
-        chart_title = f"Standard Deviation of Arrival Time (mins) - {selected_route}"
+        col, title = (
+            "arrival_stdev",
+            f"Std Dev of Arrival Time (min) - {selected_route}",
+        )
     else:
         data = medians[medians["routeName"] == selected_route].sort_values(
             by="arrival_median", ascending=False
         )
-        value_column = "arrival_median"
-        chart_title = f"Median Time Between Arrivals (mins) - {selected_route}"
+        col, title = (
+            "arrival_median",
+            f"Median Time Between Arrivals (min) - {selected_route}",
+        )
 
-    chart = (
+    st.altair_chart(
         alt.Chart(data)
         .mark_bar()
         .encode(
-            x=alt.X(f"{value_column}:Q", title="Minutes"),
-            y=alt.Y("stopName:N", title="Stop Name", sort="-x"),
-            tooltip=["stopName", value_column],
+            x=alt.X(f"{col}:Q", title="Minutes"),
+            y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
+            tooltip=["stopName", col],
         )
-        .properties(width=700, height=500, title=chart_title)
+        .properties(width=700, height=500, title=title),
+        use_container_width=True,
     )
-
-    st.altair_chart(chart, use_container_width=True)
-
-elif page == "Route Duration Summary":
-    data = get_route_level_ridership_vs_variance()
-
-    st.title("UGo Shuttle Route Summary")
-
-    st.write("### Route-Level Scatter: Variance vs. Daily Ridership")
-    st.markdown(
-        "Each point represents a route. The X-axis shows how variable the arrival times are, "
-        "while the Y-axis reflects average daily boardings."
-    )
-
-    chart = (
-        alt.Chart(data)
-        .mark_circle(size=120)
-        .encode(
-            x=alt.X("arrival_stdev:Q", title="Avg Arrival Time Std Dev (mins)"),
-            y=alt.Y("avg_daily_boardings:Q", title="Avg Daily Boardings"),
-            color=alt.Color("routeName:N", title="Route"),
-            tooltip=["routeName", "arrival_stdev", "avg_daily_boardings"],
-        )
-        .properties(width=700, height=500)
-        .interactive()
-    )
-
-    st.altair_chart(chart, use_container_width=True)
-
-    if st.checkbox("Show route-level data"):
-        st.dataframe(data)
 
 
 elif page == "Time Series Analysis":
-    st.title("🚍 Visualizing Intra-Month Variability in Passenger Load")
-    st.markdown(
-        "This visualization displays weekly ridership trends for a selected transit route and month."
-    )
-    # Convert arrivalTime to datetime and extract the day of the week and week number.
+    st.title("🚍 Intra-Month Passenger Load Variability")
+    st.markdown("Weekly ridership trends for a selected route and month.")
     data = time_extraction()
-    # Group by week and day, and sum passengerLoad.
-    agg_df = aggregate_by_time(data)
+    agg = aggregate_by_time(data)
 
     month_order = ["January", "February", "March"]
-    month_options = [m for m in month_order if m in agg_df["month"].unique()]
+    months = [m for m in month_order if m in agg["month"].unique()]
 
-    # Streamlit Visualization
-    selected_route = st.selectbox("Select Route", agg_df["routeName"].unique())
-    selected_month = st.selectbox("Select Month", month_options)
+    route_sel = st.selectbox("Select Route", agg["routeName"].unique())
+    month_sel = st.selectbox("Select Month", months)
 
-    # Filter data
-    day_order = [
+    days = [
         "Monday",
         "Tuesday",
         "Wednesday",
@@ -278,51 +279,38 @@ elif page == "Time Series Analysis":
         "Saturday",
         "Sunday",
     ]
-    filtered = agg_df[
-        (agg_df["routeName"] == selected_route) & (agg_df["month"] == selected_month)
-    ].copy()
+    filt = agg[(agg["routeName"] == route_sel) & (agg["month"] == month_sel)].copy()
+    filt["week_day"] = pd.Categorical(filt["week_day"], categories=days, ordered=True)
 
-    # Make 'week_day' an ordered categorical
-    filtered["week_day"] = pd.Categorical(
-        filtered["week_day"], categories=day_order, ordered=True
-    )
-
-    # Pivot and sort index
-    pivot = filtered.pivot_table(
+    pivot = filt.pivot_table(
         index="week_day", columns="month_week", values="passengerLoad"
-    )
-    pivot = pivot.sort_index()
+    ).sort_index()
     pivot.columns = [f"Week {int(w)}" for w in pivot.columns]
-
-    # Melt pivoted data back into long format for Altair
-    long_df = pivot.reset_index().melt(
+    long = pivot.reset_index().melt(
         id_vars="week_day", var_name="week", value_name="passengerLoad"
     )
 
-    # Merge to get actual dates back
-    date_map = filtered[["week_day", "month_week", "date"]].drop_duplicates()
-    date_map["week"] = "Week " + date_map["month_week"].astype(int).astype(str)
+    dm = filt[["week_day", "month_week", "date"]].drop_duplicates()
+    dm["week"] = "Week " + dm["month_week"].astype(int).astype(str)
+    merged = long.merge(dm, on=["week_day", "week"], how="left")
 
-    # Merge with long_df to get date for tooltip
-    merged = long_df.merge(date_map, on=["week_day", "week"], how="left")
-
-    # Altair chart with hover tooltip
-    chart = (
+    st.altair_chart(
         alt.Chart(merged)
         .mark_line(point=True)
         .encode(
-            x=alt.X("week_day:N", sort=day_order, title="Day of the Week"),
+            x=alt.X("week_day:N", sort=days, title="Day of Week"),
             y=alt.Y("passengerLoad:Q", title="Passenger Load"),
             color="week:N",
             tooltip=[
                 alt.Tooltip("week_day:N", title="Weekday"),
                 alt.Tooltip("week:N", title="Week"),
                 alt.Tooltip("date:T", title="Date"),
-                alt.Tooltip("passengerLoad:Q", title="Passenger Load"),
+                alt.Tooltip("passengerLoad:Q", title="Load"),
             ],
         )
-        .properties(title="⏱️ Sum of Riders Given Route and Date")
-        .interactive()
+        .properties(title="Riders by Weekday & Week")
+        .interactive(),
+        use_container_width=True,
     )
 
     st.altair_chart(chart, use_container_width=True)
