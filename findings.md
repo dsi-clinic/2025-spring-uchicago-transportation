@@ -1,0 +1,4 @@
+## Project Findings
+![image](images/variance_vs_ridership.png)
+
+To investigate whether there is a relationship between average daily ridership and the variability of arrival times, we created a scatter plot showing each route’s average daily boardings against its average arrival time standard deviation. However, no clear pattern or strong correlation was observed. Routes with high ridership appeared both among those with low and high arrival time variability, and vice versa. This suggests that factors other than arrival time consistency may play a more significant role in influencing ridership levels.

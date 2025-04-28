@@ -27,7 +27,7 @@ page = st.sidebar.radio(
     [
         "Rider Waiting Patterns",
         "Bus Stop Variance Explorer",
-        "Route Duration Summary",
+        # "Route Duration Summary",
         "Time Series Analysis",
     ],
 )
