@@ -18,8 +18,7 @@ def read_csv_files(pattern):
         raise Exception(f"No rows loaded from {pattern}")
     return df_shuttles
 
-
-if __name__ == "__main__":
+def load_data():
     data_dir = Path("data")
     unzipped_dir = Path("data/unzipped")
     output_dir = Path("data/processed")
@@ -49,7 +48,8 @@ if __name__ == "__main__":
     # Read 25-23-24-NumShuttlesRunning CSV
     try:
         pattern = "ClinicDump-25-23-24-NumShuttlesRunning.csv"
-        NumShuttleRunning = read_csv_files(unzipped_dir / pattern)
+        url = "https://uchicago.box.com/shared/static/qyu4niqtd4lnsixgix4twsvsko1t9hfd.csv"
+        NumShuttleRunning = read_csv_files(url)
         NumShuttleRunning.to_csv(
             output_dir / "25-23-24-NumShuttleRunning.tsv", sep="\t", index=False
         )
@@ -60,7 +60,8 @@ if __name__ == "__main__":
     # Read 25-24-24-StopEvents CSV
     try:
         pattern = "ClinicDump-25-23-24-StopEvents.csv"
-        StopEvents = read_csv_files(unzipped_dir / pattern)
+        url = "https://uchicago.box.com/shared/static/2xhk7qazepe3xpmsenpzwoeuc4qwk48q.csv"
+        StopEvents = read_csv_files(url)
         StopEvents.to_csv(output_dir / "25-23-24-StopEvents.tsv", sep="\t", index=False)
         print(f"TSV files for {pattern} are created")
     except Exception as e:
@@ -69,7 +70,8 @@ if __name__ == "__main__":
     # Read NumShuttlesRunning CSV
     try:
         pattern = "ClinicDump-NumShuttlesRunning.csv"
-        NumShuttleRunning = read_csv_files(unzipped_dir / pattern)
+        url = "https://uchicago.box.com/shared/static/178lhqvdkzyempiot2cvd9gep70n5upr.csv"
+        NumShuttleRunning = read_csv_files(url)
         NumShuttleRunning.to_csv(
             output_dir / "NumShuttleRunning.tsv", sep="\t", index=False
         )
@@ -80,8 +82,15 @@ if __name__ == "__main__":
     # Read StopEvents CSV
     try:
         pattern = "ClinicDump-StopEvents.csv"
-        StopEvents = read_csv_files(unzipped_dir / pattern)
+        url = "https://uchicago.box.com/shared/static/ycdc81r3eqkskz3tykjdj2rdbnvpoc6m.csv"
+        StopEvents = read_csv_files(url)
         StopEvents.to_csv(output_dir / "StopEvents.tsv", sep="\t", index=False)
         print(f"TSV files for {pattern} are created")
     except Exception as e:
         print(f"Error reading StopEvents file: {e}")
+
+def main():
+    load_data()
+
+if __name__ == "__main__":
+    main()

@@ -4,6 +4,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from src.utils.data_cleaning import load_data
 from src.utils.load import (
     add_time_blocks,
     add_traffic_flag,
@@ -19,6 +20,12 @@ st.set_page_config(page_title="UGo Shuttle Analysis Dashboard", layout="wide")
 
 # Create a sidebar for navigation
 st.sidebar.title("UGo Shuttle Analysis")
+
+@st.cache_resource()
+def startup():
+    load_data()
+
+startup()
 
 # Navigation options
 page = st.sidebar.radio(
