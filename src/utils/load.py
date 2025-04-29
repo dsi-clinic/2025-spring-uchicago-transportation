@@ -99,7 +99,7 @@ def assign_expected_frequencies(stop_events_df):
     # schedule from UGo site
     schedule_map = {
         "Red Line/Arts Block": [
-            ([0, 1, 2, 3, 4], 6.5, 21, 20)
+            ([0, 1, 2, 3, 4], 6.5, 21, 10)
         ],  # example: M-F 6:30am - 9:00pm
         "Friend Center/Metra": [([0, 1, 2, 3, 4], 5, 21, 30)],
         "Drexel": [([0, 1, 2, 3, 4], 5, 10, 10)],
