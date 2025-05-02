@@ -18,7 +18,9 @@ def read_csv_files(pattern):
         raise Exception(f"No rows loaded from {pattern}")
     return df_shuttles
 
+
 def load_data():
+    """Load the data"""
     data_dir = Path("data")
     unzipped_dir = Path("data/unzipped")
     output_dir = Path("data/processed")
@@ -36,14 +38,14 @@ def load_data():
         try:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 zip_ref.extractall(unzipped_dir)
-            input_folder = unzipped_dir
+            # input_folder = unzipped_dir
             print(f"Extracted contents to: {output_dir}")
         except zipfile.BadZipFile:
             print(f"Error: The file at {zip_path} is not a valid zip file.")
             exit(1)
     else:
         print(f"No zip file found in: {data_dir}")
-        input_folder = data_dir  # fallback to raw folder
+        # input_folder = data_dir  # fallback to raw folder
 
     # Read 25-23-24-NumShuttlesRunning CSV
     try:
@@ -89,8 +91,11 @@ def load_data():
     except Exception as e:
         print(f"Error reading StopEvents file: {e}")
 
+
 def main():
+    """Function triggering load_data"""
     load_data()
+
 
 if __name__ == "__main__":
     main()

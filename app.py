@@ -1,9 +1,10 @@
 """Multipage Streamlit app for UGo Transportation analysis."""
 
+import json
+
 import altair as alt
 import pandas as pd
 import streamlit as st
-import json
 import streamlit.components.v1 as components
 
 from src.utils.data_cleaning import load_data
@@ -26,6 +27,7 @@ st.sidebar.title("UGo Shuttle Analysis")
 
 @st.cache_resource()
 def startup():
+    """Starting up the dashboard"""
     load_data()
 
 
@@ -418,58 +420,71 @@ elif page == "Connector Bunching Map":
 
     # ── Coordinates for the stops -----------------
     STOP_COORDS = {
-        "Gleacher Center":                      (41.88964, -87.62196),
-        "Rockefeller Chapel":                    (41.78779, -87.59664),
-        "E Randolph St & S Michigan Ave":       (41.88430, -87.62383),
-        "S Michigan Ave/Roosevelt":           (41.86795, -87.62397),
-        "S (Upper) Wacker Dr & W Adams St":     (41.87950, -87.63701),
-        "S Lake Park Ave & E Hyde Park Blvd":   (41.80279, -87.58782),
-        "N (Upper) Wacker Dr & W Madison St":   (41.88205, -87.63712),
-        "S Lake Park & E 53rd St":              (41.79952, -87.58716),
-        "55th Street & University":             (41.79497, -87.59787),
-        "UCHICAGO Medicine - River East":       (41.89192, -87.61817),
-        "Goldblatt Pavilion":                  (41.78778, -87.60380),
-        "UCHICAGO Medicine - South Loop":       (41.86968, -87.63950),
-        "Roosevelt Station":                    (41.86729, -87.62686),
+        "Gleacher Center": (41.88964, -87.62196),
+        "Rockefeller Chapel": (41.78779, -87.59664),
+        "E Randolph St & S Michigan Ave": (41.88430, -87.62383),
+        "S Michigan Ave/Roosevelt": (41.86795, -87.62397),
+        "S (Upper) Wacker Dr & W Adams St": (41.87950, -87.63701),
+        "S Lake Park Ave & E Hyde Park Blvd": (41.80279, -87.58782),
+        "N (Upper) Wacker Dr & W Madison St": (41.88205, -87.63712),
+        "S Lake Park & E 53rd St": (41.79952, -87.58716),
+        "55th Street & University": (41.79497, -87.59787),
+        "UCHICAGO Medicine - River East": (41.89192, -87.61817),
+        "Goldblatt Pavilion": (41.78778, -87.60380),
+        "UCHICAGO Medicine - South Loop": (41.86968, -87.63950),
+        "Roosevelt Station": (41.86729, -87.62686),
     }
     coord_df = (
         pd.DataFrame.from_dict(STOP_COORDS, orient="index", columns=["lat", "lon"])
-          .reset_index()
-          .rename(columns={"index": "stopName"})
+        .reset_index()
+        .rename(columns={"index": "stopName"})
     )
 
     # ── calculate bunching: can be changed -------------------------
     ROUTE_KEY = "Downtown Campus Connector"
-    df = assign_expected_frequencies(load_stop_events())
-    df = df[df["routeName"].str.contains(ROUTE_KEY, na=False)]
-    df = (
-        df.assign(date=df["arrivalTime"].dt.date)
-          .sort_values(["stopName", "date", "arrivalTime"])
-          .assign(prev_arrival=lambda d: d.groupby(["stopName", "date"])
-                                          ["arrivalTime"].shift(1))
-          .assign(headway_min=lambda d:
-                  (d["arrivalTime"] - d["prev_arrival"]).dt.total_seconds() / 60)
-          .dropna(subset=["headway_min", "expectedFreq"])
+    temp_df = assign_expected_frequencies(load_stop_events())
+    temp_df = temp_df[temp_df["routeName"].str.contains(ROUTE_KEY, na=False)]
+    temp_df = (
+        temp_df.assign(date=temp_df["arrivalTime"].dt.date)
+        .sort_values(["stopName", "date", "arrivalTime"])
+        .assign(
+            prev_arrival=lambda d: d.groupby(["stopName", "date"])["arrivalTime"].shift(
+                1
+            )
+        )
+        .assign(
+            headway_min=lambda d: (
+                d["arrivalTime"] - d["prev_arrival"]
+            ).dt.total_seconds()
+            / 60
+        )
+        .dropna(subset=["headway_min", "expectedFreq"])
     )
 
     hr_start, hr_end = st.slider(
         "Select hour range",
-        0, 23, (7, 10), 1, format="%0dh",
-        help="Arrivals whose *hour* falls in this range are counted."
+        0,
+        23,
+        (7, 10),
+        1,
+        format="%0dh",
+        help="Arrivals whose *hour* falls in this range are counted.",
     )
-    df = df[df["arrivalTime"].dt.hour.between(hr_start, hr_end)]
+    temp_df = temp_df[temp_df["arrivalTime"].dt.hour.between(hr_start, hr_end)]
     bunching = (
-        df.assign(is_bunched=df["headway_min"] < 0.5 * df["expectedFreq"])
-          .groupby("stopName")["is_bunched"]
-          .mean()
-          .reset_index(name="bunching_rate")
+        temp_df.assign(
+            is_bunched=temp_df["headway_min"] < 0.5 * temp_df["expectedFreq"]
+        )
+        .groupby("stopName")["is_bunched"]
+        .mean()
+        .reset_index(name="bunching_rate")
     )
 
     # 3 ── merge coords & serialize to JSON -----------------------
     plot_df = (
         bunching.merge(coord_df, on="stopName", how="left")
-                .dropna(subset=["lat", "lon"])
-                .assign(pct=lambda d: (d["bunching_rate"] * 100).round(1))
+        .dropna(subset=["lat", "lon"])
+        .assign(pct=lambda d: (d["bunching_rate"] * 100).round(1))
     )
     points_json = json.dumps(
         plot_df[["stopName", "lat", "lon", "pct"]].to_dict("records")
