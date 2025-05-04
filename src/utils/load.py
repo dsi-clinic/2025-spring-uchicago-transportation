@@ -15,8 +15,16 @@ def load_stop_events():
     if not file_path.exists():
         raise FileNotFoundError(f"Missing file: {file_path.resolve()}")
     stop_events_df = pd.read_csv(file_path, sep="\t")
-    stop_events_df["arrivalTime"] = pd.to_datetime(stop_events_df["arrivalTime"])
-    stop_events_df["departureTime"] = pd.to_datetime(stop_events_df["departureTime"])
+    stop_events_df["arrivalTime"] = (
+        pd.to_datetime(stop_events_df["arrivalTime"], utc=True)
+        .dt.tz_convert("America/Chicago")
+        .dt.tz_localize(None)
+    )
+    stop_events_df["departureTime"] = (
+        pd.to_datetime(stop_events_df["departureTime"], utc=True)
+        .dt.tz_convert("America/Chicago")
+        .dt.tz_localize(None)
+    )
     stop_events_df["stopDurationSeconds"] = pd.to_numeric(
         stop_events_df["stopDurationSeconds"], errors="coerce"
     )
@@ -33,8 +41,16 @@ def load_stop_events_march():
     if not file_path.exists():
         raise FileNotFoundError(f"Missing file: {file_path.resolve()}")
     stop_events_df = pd.read_csv(file_path, sep="\t")
-    stop_events_df["arrivalTime"] = pd.to_datetime(stop_events_df["arrivalTime"])
-    stop_events_df["departureTime"] = pd.to_datetime(stop_events_df["departureTime"])
+    stop_events_df["arrivalTime"] = (
+        pd.to_datetime(stop_events_df["arrivalTime"], utc=True)
+        .dt.tz_convert("America/Chicago")
+        .dt.tz_localize(None)
+    )
+    stop_events_df["departureTime"] = (
+        pd.to_datetime(stop_events_df["departureTime"], utc=True)
+        .dt.tz_convert("America/Chicago")
+        .dt.tz_localize(None)
+    )
     stop_events_df["stopDurationSeconds"] = pd.to_numeric(
         stop_events_df["stopDurationSeconds"], errors="coerce"
     )
@@ -50,17 +66,21 @@ def process_arrival_times(stop_events_df):
     Returns:
         tuple: (filtered_df, variances_df, medians_df) - Filtered dataframe and summary stats
     """
-    df_sorted = stop_events_df.sort_values(by=["routeName", "stopName", "arrivalTime"])
+    stop_events_df = stop_events_df[stop_events_df["expectedFreq"].notna()]
+    stop_events_df["serviceDate"] = stop_events_df["arrivalTime"].dt.date
+    df_sorted = stop_events_df.sort_values(
+        by=["routeName", "stopName", "serviceDate", "arrivalTime"]
+    )
     df_sorted["arrival_diff"] = (
-        df_sorted.groupby(["routeName", "stopName"])["arrivalTime"]
+        df_sorted.groupby(["routeName", "stopName", "serviceDate"])["arrivalTime"]
         .diff()
         .dt.total_seconds()
     ) / 60
     df_valid = df_sorted.dropna(subset=["arrival_diff"])
 
     # Filter outliers
-    lower = df_valid["arrival_diff"].quantile(0.05)
-    upper = df_valid["arrival_diff"].quantile(0.95)
+    lower = df_valid["arrival_diff"].quantile(0.1)
+    upper = df_valid["arrival_diff"].quantile(0.9)
 
     df_valid = df_valid.copy()
     df_valid["isOutlier"] = df_valid["arrival_diff"].apply(
@@ -90,7 +110,6 @@ def process_arrival_times(stop_events_df):
 
 def assign_expected_frequencies(stop_events_df):
     """Add expected frequency flags to stop events based on route and time."""
-    stop_events_df["arrivalTime"] = pd.to_datetime(stop_events_df["arrivalTime"])
     stop_events_df["arrivalHour"] = stop_events_df["arrivalTime"].dt.hour
     stop_events_df["arrivalWeekday"] = stop_events_df[
         "arrivalTime"
@@ -109,35 +128,52 @@ def assign_expected_frequencies(stop_events_df):
             ([0, 1, 2, 3, 4], 15, 24.5, 10),
         ],
         "Midway Metra": [
-            ([0, 1, 2, 3, 4], 5.66, 9.66, 20),
-            ([0, 1, 2, 3, 4], 15.5, 18.66, 20),
+            ([0, 1, 2, 3, 4], 5.66, 9.66, 15),
+            ([0, 1, 2, 3, 4], 15.5, 18.66, 15),
         ],
         "53rd Street Express": [
             ([0, 1, 2, 3, 4], 7, 8, 30),
             ([0, 1, 2, 3, 4], 8, 10.5, 15),
             ([0, 1, 2, 3, 4], 10.5, 18, 30),
         ],
-        "Downtown Campus Connector": [([0, 1, 2, 3, 4], 6.5, 22, 20)],
+        "Downtown Campus Connector": [
+            ([0, 1, 2, 3, 4], 6.5, 22, 20),
+        ],
+        "Regents Express": [([0, 1, 2, 3, 4], 5.33, 21, 30)],
+        "North": [
+            ([0, 1, 2, 3, 4, 5, 6], 16, 23, 15),
+            ([0, 1, 2, 3, 4, 5, 6], 23, 28, 30),
+        ],
+        "East": [
+            ([0, 1, 2, 3, 4, 5, 6], 16, 23, 15),
+            ([0, 1, 2, 3, 4, 5, 6], 23, 28, 30),
+        ],
+        "Central": [
+            ([0, 1, 2, 3, 4, 5, 6], 16, 23, 15),
+            ([0, 1, 2, 3, 4, 5, 6], 23, 28, 30),
+        ],
+        "South": [
+            ([0, 1, 2, 3, 4, 5, 6], 16, 23, 15),
+            ([0, 1, 2, 3, 4, 5, 6], 23, 28, 30),
+        ],
+        "South Loop Shuttle": [([4, 5], 18, 24.5, 60)],
     }
 
     def get_expected_freq(row):
-        route = row["routeName"]
+        route = row["routeName"].strip()
         hour = row["arrivalHour"] + row["arrivalTime"].minute / 60
         weekday = row["arrivalWeekday"]
 
-        if "South Loop Shuttle" in route:
-            return 60
-        elif any(
-            x in route for x in ["North", "South", "East", "Central", "Regents Express"]
-        ):
-            return 30
+        EARLY_MORNING_CUTOFF_HOUR = 4
 
-        for key, schedules in schedule_map.items():
-            if key in route:
-                for valid_days, start, end, freq in schedules:
-                    if weekday in valid_days and start <= hour < end:
-                        return freq
-        return 30
+        if 0 <= hour < EARLY_MORNING_CUTOFF_HOUR:
+            hour += 24
+
+        schedules = schedule_map.get(route, [])
+        for valid_days, start, end, freq in schedules:
+            if weekday in valid_days and start <= hour < end:
+                return freq
+        return pd.NA
 
     stop_events_df["expectedFreq"] = stop_events_df.apply(get_expected_freq, axis=1)
 
