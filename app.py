@@ -216,7 +216,6 @@ elif page == "Rider Waiting Patterns by Traffic Level":
 
 elif page == "Bus Stop Variance Explorer":
     stop_events_df = load_stop_events()
-    _, variances, medians = process_arrival_times(stop_events_df)
     stop_events_df = assign_expected_frequencies(stop_events_df)
 
     st.sidebar.header("Frequency (in minutes)")
@@ -230,8 +229,8 @@ elif page == "Bus Stop Variance Explorer":
     )
 
     stop_events_df = stop_events_df[stop_events_df["expectedFreq"] == selected_freq]
-    variances = variances[variances["routeName"].isin(stop_events_df["routeName"])]
-    medians = medians[medians["routeName"].isin(stop_events_df["routeName"])]
+    stop_events_df = stop_events_df[stop_events_df["expectedFreq"].notna()]
+    _, variances, medians = process_arrival_times(stop_events_df)
 
     st.title("Chicago Bus Stop Variance Explorer")
 
