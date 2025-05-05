@@ -265,6 +265,75 @@ def add_traffic_flag(stop_events_df):
     return stop_events_df
 
 
+def load_holdover_data():
+    """Returns a DataFrame mapping routeName to holdover stop and duration."""
+    data = {
+        "route": [
+            "53rd Street Express",
+            "Apostolic",
+            "Apostolic/Drexel",
+            "Central",
+            "Downtown Campus Connector",
+            "Drexel",
+            "East",
+            "Friend Center/Metra",
+            "Gleacher Express",
+            "Midway Metra AM",
+            "Midway Metra PM",
+            "North",
+            "Red Line/Arts Block",
+            "Regents Express",
+            "South",
+        ],
+        "holdover_stop": [
+            "Logan Center",
+            "Kenwood/63rd",
+            "Goldblatt Pavilion",
+            "Reynolds Club",
+            None,
+            "Drexel Garage",
+            "Reynolds Club",
+            "Goldblatt Pavilion",
+            None,
+            None,
+            None,
+            "Reynolds Club",
+            "Logan Center",
+            "Law",
+            "60th/Ellis",
+        ],
+        "duration": [
+            "6 minutes",
+            "7 minutes",
+            "5 minutes",
+            "4 minutes",
+            None,
+            "10 minutes",
+            "3 minutes",
+            "5 minutes",
+            None,
+            None,
+            None,
+            "3 minutes",
+            "7 minutes",
+            "6 minutes",
+            "6 minutes",
+        ],
+    }
+
+    holdover_df = pd.DataFrame(data)
+
+    # add numeric minutes column (0 if no holdover)
+    holdover_df["durationMinutes"] = (
+        holdover_df["duration"]
+        .fillna("0 minutes")
+        .str.replace(" minutes", "", regex=False)
+        .astype(int)
+    )
+
+    return holdover_df
+
+
 def time_extraction():
     """Extract month number, week number, and day of week."""
     shuttle_data = load_stop_events_march()
