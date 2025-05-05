@@ -116,17 +116,40 @@ if page == "Rider Waiting Patterns by Stop":
     outliers = filtered_events[filtered_events["stopDurationMinutes"] > thr].copy()
 
     # ── Holdover merge ───────────────────────────────────────────────────
-    hold = load_holdover_data()
+    # 1) normalize both sides
     core["route_key"] = core["routeName"].apply(normalize_route)
     core["stop_key"] = core["stopName"].apply(normalize_stop)
+    core["stop_key"] = core["stop_key"].replace(
+        {
+            "logan cneter": "logan center for arts",  ##proper name
+            "logan center": "logan center for arts",  ##catch misspelling
+            "drexel garage": "drexel garage",
+        }
+    )
+
+    hold = load_holdover_data()
     hold["route_key"] = hold["route"].apply(normalize_route)
     hold["stop_key"] = hold["holdover_stop"].apply(normalize_stop)
 
+    # 2) patch in our handful of special cases
+    special_stop_map = {
+        "law": "law school",  # “Law” → “Law School (N)”
+        "goldblatt pavillion": "goldblatt pavilion",  # fix typo
+        "60th and ellis": "60th st. and ellis",  # drop “(SE Corner)”
+        "logan cneter": "logan center for arts",  # catch misspelling
+        "logan center": "logan center for arts",  # proper name
+    }
+    hold["stop_key"] = hold["stop_key"].replace(special_stop_map)
+    hold["stop_key"] = hold["stop_key"].replace(special_stop_map)
+
+    # 3) merge on the unified keys
     merged = core.merge(
         hold,
         how="left",
         on=["route_key", "stop_key"],
     )
+
+    # 4) flag holdovers
     merged["isHoldover"] = merged["durationMinutes"].fillna(0) > 0
 
     # ── Charts ────────────────────────────────────────────────────────────
@@ -158,30 +181,39 @@ if page == "Rider Waiting Patterns by Stop":
     )
     st.altair_chart(chart1, use_container_width=True)
 
-    # Avg by Time Block
+    # ── Avg by Time Block  ────────────────
     avg_time = (
         filtered_events.groupby("timeBlock")["stopDurationMinutes"].mean().reset_index()
     )
+
     chart2 = (
         alt.Chart(avg_time)
         .mark_bar()
         .encode(
-            x=alt.X("timeBlock:N", title="Time of Day"),
-            y=alt.Y("stopDurationMinutes:Q", title="Avg Duration (min)"),
+            x=alt.X(
+                "timeBlock:N",
+                title="Time of Day",
+                axis=alt.Axis(labelAngle=-45, labelPadding=10),  # tilt + pad labels
+            ),
+            y=alt.Y(
+                "stopDurationMinutes:Q",
+                title="Avg Duration (min)",
+                scale=alt.Scale(
+                    domain=[0, avg_time["stopDurationMinutes"].max() * 1.1]
+                ),
+            ),
             tooltip=["timeBlock", "stopDurationMinutes"],
         )
-        .properties(title="Avg Stop Duration Across Time Blocks", height=300)
+        .properties(
+            title="Avg Stop Duration Across Time Blocks",
+            height=500,  # taller chart
+            padding={"left": 50, "right": 10, "top": 20, "bottom": 80},
+        )
     )
+
+    st.write("")  # add a blank line above
     st.altair_chart(chart2, use_container_width=True)
 
-    # Outliers expander
-    if not outliers.empty:
-        with st.expander(f"🔍 Show {len(outliers)} outlier events (> {thr:.1f} min)"):
-            st.dataframe(
-                outliers[["stopName", "timeBlock", "stopDurationMinutes"]].sort_values(
-                    "stopDurationMinutes", ascending=False
-                )
-            )
 
 # ──────────────────────────────────────────────────────────────────────────────
 elif page == "Rider Waiting Patterns by Traffic Level":
