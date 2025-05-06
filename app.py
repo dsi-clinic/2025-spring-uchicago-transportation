@@ -368,7 +368,7 @@ elif page == "Time Series Analysis":
     filt["week_day"] = pd.Categorical(filt["week_day"], categories=days, ordered=True)
 
     pivot = filt.pivot_table(
-        index="week_day", columns="month_week", values="passengerLoad"
+        index="week_day", columns="month_week", values="passengerLoad", observed=True
     ).sort_index()
     pivot.columns = [f"Week {int(w)}" for w in pivot.columns]
     long = pivot.reset_index().melt(
