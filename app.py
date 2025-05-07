@@ -6,6 +6,9 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from src.utils.data_cleaning import load_data
 from src.utils.load import (
@@ -413,12 +416,13 @@ elif page == "Bunching Exploration":
         st.dataframe(trimmed_df)
 
 elif page == "Connector Bunching Map":
+
     st.title("Downtown Connector – Stop-level Bunching")
 
-    # ── Google Maps API key ------------------------------------
-    api_key = st.secrets.get("GOOGLE_MAPS_KEY")
+    # ── Google Maps API key ──────────────────────────────────────────────
+    api_key = os.environ["GOOGLE_MAP_KEY"]          # make sure this is loaded
 
-    # ── Coordinates for the stops -----------------
+    # ── Stop coordinates ────────────────────────────────────────────────
     STOP_COORDS = {
         "Gleacher Center": (41.88964, -87.62196),
         "Rockefeller Chapel": (41.78779, -87.59664),
@@ -440,17 +444,17 @@ elif page == "Connector Bunching Map":
         .rename(columns={"index": "stopName"})
     )
 
-    # ── calculate bunching: can be changed -------------------------
+    # ── Load + pre-process ALL stop events once (no hour filter yet) ────
+    # ── Load + preprocess ALL events once (no hour filter yet) ─────────
     ROUTE_KEY = "Downtown Campus Connector"
-    temp_df = assign_expected_frequencies(load_stop_events())
-    temp_df = temp_df[temp_df["routeName"].str.contains(ROUTE_KEY, na=False)]
-    temp_df = (
-        temp_df.assign(date=temp_df["arrivalTime"].dt.date)
+    base_df = assign_expected_frequencies(load_stop_events())
+    base_df = base_df[base_df["routeName"].str.contains(ROUTE_KEY, na=False)]
+    base_df = (
+        base_df.assign(date=base_df["arrivalTime"].dt.date)
         .sort_values(["stopName", "date", "arrivalTime"])
         .assign(
-            prev_arrival=lambda d: d.groupby(["stopName", "date"])["arrivalTime"].shift(
-                1
-            )
+            prev_arrival=lambda d: d.groupby(["stopName", "date"])["arrivalTime"]
+            .shift(1)
         )
         .assign(
             headway_min=lambda d: (
@@ -461,53 +465,71 @@ elif page == "Connector Bunching Map":
         .dropna(subset=["headway_min", "expectedFreq"])
     )
 
+    # ── Hour-range slider → subset for the map ─────────────────────────
     hr_start, hr_end = st.slider(
         "Select hour range",
-        0,
-        23,
-        (7, 10),
-        1,
+        0, 23, (7, 10), 1,
         format="%0dh",
         help="Arrivals whose *hour* falls in this range are counted.",
     )
-    temp_df = temp_df[temp_df["arrivalTime"].dt.hour.between(hr_start, hr_end)]
-    bunching = (
-        temp_df.assign(
-            is_bunched=temp_df["headway_min"] < 0.5 * temp_df["expectedFreq"]
+    sub_df = base_df[base_df["arrivalTime"].dt.hour.between(hr_start, hr_end)]
+    bunch_sub = (
+        sub_df.assign(
+            is_bunched=sub_df["headway_min"] < 0.5 * sub_df["expectedFreq"]
         )
         .groupby("stopName")["is_bunched"]
         .mean()
         .reset_index(name="bunching_rate")
     )
 
-    # 3 ── merge coords & serialize to JSON -----------------------
+    # ── Merge coords & JSON serialise ─────────────────────────────────
     plot_df = (
-        bunching.merge(coord_df, on="stopName", how="left")
+        bunch_sub.merge(coord_df, on="stopName", how="left")
         .dropna(subset=["lat", "lon"])
         .assign(pct=lambda d: (d["bunching_rate"] * 100).round(1))
     )
     points_json = json.dumps(
         plot_df[["stopName", "lat", "lon", "pct"]].to_dict("records")
     )
-    # 4 ── build the tiny HTML/JS page ----------------------------
+
+    # ── Build the embedded HTML/JS page ───────────────────────────────
     color_js = """
-        // -------- viridis 7-bucket helper ---------------------------------
-        function pctToColor(p){
-            const lim = [0,15,30,45,60,75,90,100];
-            // 7 viridis hex codes (light → dark)
-            const col = ['#FDE725','#B4DE2C','#6DCD59',
-                    '#35B779','#1F9E89','#31688E','#440154'];
-            for(let i=0;i<lim.length-1;i++){
-            if(p <= lim[i+1]) return col[i];
-            }
-            return col[col.length-1];
+      // -------- Viridis palette (light ➟ dark, 7 steps) ---------------
+      const VIRIDIS = ['#FDE725','#B4DE2C','#6DCD59',
+                       '#35B779','#1F9E89','#31688E','#440154'];
+
+      // -------- Fixed boundaries (0,10,20,…,70) -----------------------
+      const BREAKS = [0,10,20,30,40,50,60,70];
+
+      // -------- Map a value → colour, using fixed buckets -------------
+      function pctToColor(val){
+        for(let i=0;i < BREAKS.length-1; i++){
+          if(val < BREAKS[i+1]) return VIRIDIS[i];
         }
+        return VIRIDIS[VIRIDIS.length-1];            // ≥ 70 %
+      }
+
+      // -------- Produce legend rows -----------------------------------
+      function buildLegendRows(){
+        const rows = [];
+        for(let i=0; i<VIRIDIS.length; i++){
+          const lower = BREAKS[i];
+          const upper = (i < BREAKS.length-2) ? BREAKS[i+1] : null;
+          const label = upper ? `${lower}&ndash;${upper}` : `≥ ${lower}`;
+          rows.push({col: VIRIDIS[i], lab: label});
+        }
+        return rows;
+      }
     """
 
     center_lat, center_lon = 41.828233054114776, -87.61244384080472
     html = f"""
 <!DOCTYPE html><html><head>
-  <style>html,body,#map{{height:100%;margin:0}}</style>
+  <style>
+    html,body,#map{{height:100%;margin:0}}
+    .legend-box{{background:#fff;padding:8px;border:1px solid #888;border-radius:4px;
+                 font:12px/14px Arial;margin:8px}}
+  </style>
   <script src="https://maps.googleapis.com/maps/api/js?key={api_key}"></script>
 </head><body>
 <div id="map"></div>
@@ -515,21 +537,27 @@ elif page == "Connector Bunching Map":
   const pts = {points_json};
   {color_js}
 
+  // ---------- Create map ---------------------------------------------
   const map = new google.maps.Map(document.getElementById('map'), {{
     center: {{lat:{center_lat}, lng:{center_lon}}},
     zoom: 11,
     mapTypeControl:false, streetViewControl:false, fullscreenControl:false
   }});
 
+  // ---------- Draw circles -------------------------------------------
   pts.forEach(p => {{
-    const col = pctToColor(p.pct);
+    const fillCol = pctToColor(p.pct);
     const circle = new google.maps.Circle({{
-      strokeColor: col, strokeOpacity: 0.9, strokeWeight: 1,
-      fillColor: col,   fillOpacity: 0.8,
+      strokeColor: '#FF073A',
+      strokeOpacity: 1,
+      strokeWeight: 2,
+      fillColor: fillCol,
+      fillOpacity: 0.8,
       map,
       center: {{lat:p.lat, lng:p.lon}},
       radius: 120
     }});
+
     const infow = new google.maps.InfoWindow();
     circle.addListener('click', () => {{
       infow.setContent(`<b>${{p.stopName}}</b><br>Bunching: ${{p.pct}} %`);
@@ -537,13 +565,24 @@ elif page == "Connector Bunching Map":
       infow.open({{map}});
     }});
   }});
+
+  // ---------- Build fixed-bucket legend ------------------------------
+  const legend = document.createElement('div');
+  legend.className = 'legend-box';
+  legend.innerHTML = '<b>Bunching&nbsp;(%)</b><br>';
+  buildLegendRows().forEach(r => {{
+    legend.innerHTML +=
+      `<span style="display:inline-block;width:18px;height:10px;` +
+      `background:${{r.col}};margin-right:4px"></span>${{r.lab}}<br>`;
+  }});
+  map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(legend);
 </script>
 </body></html>
 """
     components.html(html, height=520, scrolling=False)
 
     st.markdown(
-        f"**Bunching definition:** headway < 50 % of scheduled frequency  •  "
+        f"**Bunching definition:** headway < 50 % of scheduled frequency • "
         f"Time window: **{hr_start}:00 – {hr_end}:59**"
     )
     with st.expander("Show underlying numbers"):
