@@ -9,7 +9,7 @@ We'd like to focus on [x number] conclusions:
 2) Continuing analysis of the same page, the South route also exhibits weird behavior. The other NightRide routes that similarly operate (North, East, Central) each have similar behavior in their 15 and 30-minute intervals; that is to say, they all come about every 15 minutes when they're supposed to, and every 30 minutes when they're supposed to. But for South, the 15-minute window has an observed median ranging from 20 minutes @ Woodlawn & 61st to 26 minutes @ 63rd & Ellis. (The 30-minute window does have all of its stops under a 30 minute average wait time, which makes for an interesting discrepancy.)
 3) [Leah]
 4) [Luna]
-5) [Minjae]
+5) We have started investigation on the headway patterns of downtown connector shuttle, which we expect to be able to provide a dashboard tool which you can use to easily monitor the bunching(headway shorter/longer than scheduled) in a selected time bracket at a specific stop. While we will delve into the bottlenecks in the line with the current data, this would allow the transportation team to utilize the tool with newer datasets in the future as well.
 
 We also have a few questions for you as we look to expand on this work: 
 1) We talked on 4/29 about the influence that Via has had on NightRide ridership. We wanted to look at a year-over-year analysis to see what the change in ridership has been and see the impact that Via has had. To that end, is there stop event data from last academic year (9/1/2023-7/2024) or more data from this academic year (9/1/2024-5/2025)? It would be a very good apples to apples comparison if we could have something like that. 
