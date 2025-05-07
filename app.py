@@ -22,7 +22,6 @@ from src.utils.load import (
     time_extraction,
 )
 
-
 load_dotenv()
 
 # ── Page config & startup ───────────────────────────────────────────────────
