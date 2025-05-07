@@ -1,14 +1,13 @@
 """Multipage Streamlit app for UGo Transportation analysis."""
 
 import json
+import os
 
 import altair as alt
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
-import os
 from dotenv import load_dotenv
-load_dotenv()
 
 from src.utils.data_cleaning import load_data
 from src.utils.load import (
@@ -20,6 +19,8 @@ from src.utils.load import (
     process_arrival_times,
     time_extraction,
 )
+
+load_dotenv()
 
 # Set page configuration for Streamlit
 st.set_page_config(page_title="UGo Shuttle Analysis Dashboard", layout="wide")
@@ -416,11 +417,10 @@ elif page == "Bunching Exploration":
         st.dataframe(trimmed_df)
 
 elif page == "Connector Bunching Map":
-
     st.title("Downtown Connector – Stop-level Bunching")
 
     # ── Google Maps API key ──────────────────────────────────────────────
-    api_key = os.environ["GOOGLE_MAP_KEY"]          # make sure this is loaded
+    api_key = os.environ["GOOGLE_MAP_KEY"]  # make sure this is loaded
 
     # ── Stop coordinates ────────────────────────────────────────────────
     STOP_COORDS = {
@@ -453,8 +453,9 @@ elif page == "Connector Bunching Map":
         base_df.assign(date=base_df["arrivalTime"].dt.date)
         .sort_values(["stopName", "date", "arrivalTime"])
         .assign(
-            prev_arrival=lambda d: d.groupby(["stopName", "date"])["arrivalTime"]
-            .shift(1)
+            prev_arrival=lambda d: d.groupby(["stopName", "date"])["arrivalTime"].shift(
+                1
+            )
         )
         .assign(
             headway_min=lambda d: (
@@ -468,15 +469,16 @@ elif page == "Connector Bunching Map":
     # ── Hour-range slider → subset for the map ─────────────────────────
     hr_start, hr_end = st.slider(
         "Select hour range",
-        0, 23, (7, 10), 1,
+        0,
+        23,
+        (7, 10),
+        1,
         format="%0dh",
         help="Arrivals whose *hour* falls in this range are counted.",
     )
     sub_df = base_df[base_df["arrivalTime"].dt.hour.between(hr_start, hr_end)]
     bunch_sub = (
-        sub_df.assign(
-            is_bunched=sub_df["headway_min"] < 0.5 * sub_df["expectedFreq"]
-        )
+        sub_df.assign(is_bunched=sub_df["headway_min"] < 0.5 * sub_df["expectedFreq"])
         .groupby("stopName")["is_bunched"]
         .mean()
         .reset_index(name="bunching_rate")
