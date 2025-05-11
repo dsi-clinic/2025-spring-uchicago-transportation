@@ -1,6 +1,7 @@
 """Multipage Streamlit app for UGo Transportation analysis."""
 
 import json
+import math
 import os
 import re
 
@@ -125,7 +126,7 @@ if page == "Rider Waiting Patterns by Stop":
     core["stop_key"] = core["stopName"].apply(normalize_stop)
     core["stop_key"] = core["stop_key"].replace(
         {
-            "logan cneter": "logan center for arts",  ##proper name
+            "logan cneter": "logan center for arts",
             "logan center": "logan center for arts",  ##catch misspelling
             "drexel garage": "drexel garage",
         }
@@ -183,12 +184,18 @@ if page == "Rider Waiting Patterns by Stop":
         )
         .properties(title="Avg Stop Duration (Holdovers in Yellow)", height=400)
     )
-    st.altair_chart(chart1, use_container_width=True)
+    st.altair_chart(chart1, use_container_width=True, key="avg_by_stop")
 
     # ── Avg by Time Block  ────────────────
     avg_time = (
         filtered_events.groupby("timeBlock")["stopDurationMinutes"].mean().reset_index()
     )
+
+    mx = avg_time["stopDurationMinutes"].max()
+    if not math.isnan(mx):
+        y_scale = alt.Scale(domain=[0, mx * 1.1])
+    else:
+        y_scale = alt.Scale()
 
     chart2 = (
         alt.Chart(avg_time)
@@ -197,26 +204,20 @@ if page == "Rider Waiting Patterns by Stop":
             x=alt.X(
                 "timeBlock:N",
                 title="Time of Day",
-                axis=alt.Axis(labelAngle=-45, labelPadding=10),  # tilt + pad labels
+                axis=alt.Axis(labelAngle=-45, labelPadding=10),
             ),
-            y=alt.Y(
-                "stopDurationMinutes:Q",
-                title="Avg Duration (min)",
-                scale=alt.Scale(
-                    domain=[0, avg_time["stopDurationMinutes"].max() * 1.1]
-                ),
-            ),
+            y=alt.Y("stopDurationMinutes:Q", title="Avg Duration (min)", scale=y_scale),
             tooltip=["timeBlock", "stopDurationMinutes"],
         )
         .properties(
             title="Avg Stop Duration Across Time Blocks",
-            height=500,  # taller chart
+            height=500,
             padding={"left": 50, "right": 10, "top": 20, "bottom": 80},
         )
     )
 
-    st.write("")  # add a blank line above
-    st.altair_chart(chart2, use_container_width=True)
+    st.write("")
+    st.altair_chart(chart2, use_container_width=True, key="avg_by_time")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
