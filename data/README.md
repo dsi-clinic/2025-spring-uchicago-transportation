@@ -14,3 +14,8 @@ The following files should be contained in this directory:
 - ClinicDump-StopEvents.csv
 
 The schedule and peak hours for UGO shuttle service is available in uchicago website, available [here](https://safety-security.uchicago.edu/en/transportation/shuttle-services).
+
+
+**Holdover Stops & Headway Data**  
+You can view or download information on UGO shuttle headways (as of Aprile 2025) [here](https://drive.google.com/drive/folders/18Zh_Y43TVAdwbGRwK0NDzM8LobapbivE).  
+This data is used on the “Rider Waiting Patterns” stop page to analyze per-stop holdover counts and headway statistics.
