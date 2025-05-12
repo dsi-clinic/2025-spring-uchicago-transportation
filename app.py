@@ -46,7 +46,7 @@ page = st.sidebar.radio(
         "Time Series Analysis",
         "Bunching Exploration",
         "Connector Bunching Map",
-        "NightRide Settings"
+        "NightRide Settings",
     ],
 )
 
@@ -373,15 +373,7 @@ elif page == "Time Series Analysis":
     filt["week_day"] = pd.Categorical(filt["week_day"], categories=days, ordered=True)
 
     pivot = filt.pivot_table(
-<<<<<<< HEAD
-<<<<<<< HEAD
-        index="week_day", columns="month_week", values="passengerLoad", observed="False"
-=======
         index="week_day", columns="month_week", values="passengerLoad", observed=True
->>>>>>> c3773ec3bb7e19b9e916cccf16ae948a989144b9
-=======
-        index="week_day", columns="month_week", values="passengerLoad", observed=True
->>>>>>> c3773ec3bb7e19b9e916cccf16ae948a989144b9
     ).sort_index()
     pivot.columns = [f"Week {int(w)}" for w in pivot.columns]
     long = pivot.reset_index().melt(
@@ -668,22 +660,21 @@ elif page == "Connector Bunching Map":
 
 elif page == "NightRide Settings":
     st.sidebar.header("NightRide settings")
-    
+
     # 1. Load and filter data
     data = time_extraction()
     default_routes = ["North", "South", "East", "Central"]
     routes = st.sidebar.multiselect(
         "Select NightRide routes to plot",
         options=default_routes,
-        default=default_routes
+        default=default_routes,
     )
 
     filtered = data[data["routeName"].isin(routes)].copy()
 
     # 2. Aggregate max passenger load by hour and route
-    agg = (
-        filtered.groupby(["hour", "routeName"], as_index=False)
-        .agg({"passengerLoad": "max"})
+    agg = filtered.groupby(["hour", "routeName"], as_index=False).agg(
+        {"passengerLoad": "max"}
     )
 
     # 3. Create Altair line plot
@@ -694,30 +685,36 @@ elif page == "NightRide Settings":
             x=alt.X("hour:Q", title="Hour of Day"),
             y=alt.Y("passengerLoad:Q", title="Max Passenger Load"),
             color=alt.Color("routeName:N", title="Route"),
-            tooltip=["hour", "routeName", "passengerLoad"]
+            tooltip=["hour", "routeName", "passengerLoad"],
         )
     )
 
     # 4. Add vertical rule at 4 PM (16:00)
-    rule = alt.Chart(pd.DataFrame({'hour': [16]})).mark_rule(
-        color='red', strokeDash=[5, 5]
-    ).encode(x='hour:Q')
-
-    text = alt.Chart(pd.DataFrame({
-        'hour': [17.1],
-        'passengerLoad': [agg['passengerLoad'].max() * 0.95],
-        'label': ['4 PM']
-    })).mark_text(
-        align='left', color='red'
-    ).encode(
-        x='hour:Q',
-        y='passengerLoad:Q',
-        text='label'
+    rule = (
+        alt.Chart(pd.DataFrame({"hour": [16]}))
+        .mark_rule(color="red", strokeDash=[5, 5])
+        .encode(x="hour:Q")
     )
 
-    chart = (line_chart + rule + text).properties(
-        title="Max Passenger Load by Hour (NightRide Routes)"
-    ).interactive()
+    text = (
+        alt.Chart(
+            pd.DataFrame(
+                {
+                    "hour": [17.1],
+                    "passengerLoad": [agg["passengerLoad"].max() * 0.95],
+                    "label": ["4 PM"],
+                }
+            )
+        )
+        .mark_text(align="left", color="red")
+        .encode(x="hour:Q", y="passengerLoad:Q", text="label")
+    )
+
+    chart = (
+        (line_chart + rule + text)
+        .properties(title="Max Passenger Load by Hour (NightRide Routes)")
+        .interactive()
+    )
 
     # 5. Show chart
     st.altair_chart(chart, use_container_width=True)
