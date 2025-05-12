@@ -32,7 +32,7 @@ def load_stop_events():
 
 
 def load_stop_events_march():
-    """Load and prepare stop events data for analysis.
+    """Load and prepare 25-23-24 stop events data for analysis.
 
     Returns:
         pd.DataFrame: Processed stop events data with proper data types.
@@ -344,6 +344,8 @@ def time_extraction():
     shuttle_data["month"] = shuttle_data["arrivalTime"].dt.month_name()
     # extract day of the month
     shuttle_data["day_of_month"] = shuttle_data["arrivalTime"].dt.day
+    # extract the hour of date
+    shuttle_data["hour"] = shuttle_data["arrivalTime"].dt.hour
     # define week of month based on day ranges
     shuttle_data["month_week"] = pd.cut(
         shuttle_data["day_of_month"],
