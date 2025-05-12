@@ -143,5 +143,5 @@ venv.bak/
 *.zip
 *.tsv
 
-# API Key
-.streamlit/secrets.toml
+# env file
+*.env
