@@ -374,7 +374,11 @@ elif page == "Time Series Analysis":
 
     pivot = filt.pivot_table(
 <<<<<<< HEAD
+<<<<<<< HEAD
         index="week_day", columns="month_week", values="passengerLoad", observed="False"
+=======
+        index="week_day", columns="month_week", values="passengerLoad", observed=True
+>>>>>>> c3773ec3bb7e19b9e916cccf16ae948a989144b9
 =======
         index="week_day", columns="month_week", values="passengerLoad", observed=True
 >>>>>>> c3773ec3bb7e19b9e916cccf16ae948a989144b9
@@ -694,7 +698,7 @@ elif page == "NightRide Settings":
         )
     )
 
-    # 4. Add vertical rule at 5 PM (17:00)
+    # 4. Add vertical rule at 4 PM (16:00)
     rule = alt.Chart(pd.DataFrame({'hour': [16]})).mark_rule(
         color='red', strokeDash=[5, 5]
     ).encode(x='hour:Q')
