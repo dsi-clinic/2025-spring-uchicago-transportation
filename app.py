@@ -409,7 +409,13 @@ elif page == "Bunching Exploration":
     # Load the data
     stop_events_df = load_stop_events()
     stop_events_df = assign_expected_frequencies(stop_events_df)
+    st.title("Heaway by Scheduled Frequency")
+    st.markdown("""
+    This page investigates experienced headway for each 'scheduled headway' groups.
+    Calculated by calculating actual gap between buses at the stops.
+    - Click 'Show headway table' to see the data in table format.
 
+    """)
     # Compute back-looking headway
     headways_df = (
         stop_events_df.assign(date=stop_events_df["arrivalTime"].dt.date)
@@ -483,6 +489,16 @@ elif page == "Bunching Exploration":
 
 elif page == "Connector Bunching Map":
     st.title("Downtown Connector – Stop-level Bunching")
+    st.markdown("""
+    This page investigates the rate of bunching in the downtown connector shuttle route in the user-selected timeframe.
+    Calculated based on time between consecutive stop events at each stop for every route.
+    - Use the sidebar to select the timeframe which you are interested in.
+    - Click each stop for detailed information.
+        - The color of the stop represents the bunching rate
+        - The name and bunching rate at the stop is displayed when clicked.
+    - Click 'Show underlying numbers' to see the data in table format.
+
+    """)
 
     # ── Google Maps API key ──────────────────────────────────────────────
     api_key = os.environ["GOOGLE_MAP_KEY"]  # make sure this is loaded
@@ -509,7 +525,6 @@ elif page == "Connector Bunching Map":
         .rename(columns={"index": "stopName"})
     )
 
-    # ── Load + pre-process ALL stop events once (no hour filter yet) ────
     # ── Load + preprocess ALL events once (no hour filter yet) ─────────
     ROUTE_KEY = "Downtown Campus Connector"
     base_df = assign_expected_frequencies(load_stop_events())
