@@ -404,7 +404,7 @@ elif page == "Time Series Analysis":
         .interactive(),
         use_container_width=True,
     )
-    
+
     st.markdown("### 🔍 Key Takeaways")
     st.markdown(
         """
@@ -670,7 +670,7 @@ elif page == "Connector Bunching Map":
 elif page == "NightRide Explorer":
     st.title("🚍 NightRide Explorer")
     st.markdown("### 🔍 Hourly Passenger Load Patterns on NightRide Routes")
-    
+
     # 1. Load and filter data
     data = time_extraction()
     default_routes = ["North", "South", "East", "Central"]
@@ -680,7 +680,6 @@ elif page == "NightRide Explorer":
         options=default_routes,
         default=default_routes,
     )
-
 
     filtered = data[data["routeName"].isin(routes)].copy()
 
@@ -730,7 +729,7 @@ elif page == "NightRide Explorer":
 
     # 5. Show chart
     st.altair_chart(chart, use_container_width=True)
-    
+
     st.markdown("### 🔍 Key Takeaways")
     st.markdown(
         """
