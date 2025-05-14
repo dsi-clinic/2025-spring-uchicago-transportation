@@ -47,7 +47,7 @@ page = st.sidebar.radio(
         "Time Series Analysis",
         "Bunching Exploration",
         "Connector Bunching Map",
-        "NightRide Settings",
+        "NightRide Explorer",
     ],
 )
 
@@ -352,6 +352,7 @@ elif page == "Bus Stop Variance Explorer":
 elif page == "Time Series Analysis":
     st.title("🚍 Intra-Month Passenger Load Variability")
     st.markdown("Weekly ridership trends for a selected route and month.")
+    st.markdown("### 🔍 Data Exploration")
     data = time_extraction()
     agg = aggregate_by_time(data)
 
@@ -404,6 +405,13 @@ elif page == "Time Series Analysis":
         use_container_width=True,
     )
 
+    st.markdown("### 🔍 Key Takeaways")
+    st.markdown(
+        """
+        - Midweek ridership is higher than on Mondays or Fridays, suggesting peak usage happens Tuesday to Thursday.
+        - Final week shows lower traffic, possibly because fewer students are arriving on or leaving campus.
+        """
+    )
 
 elif page == "Bunching Exploration":
     # Load the data
@@ -659,13 +667,15 @@ elif page == "Connector Bunching Map":
             .sort_values("bunching rate (%)", ascending=False)
         )
 
-elif page == "NightRide Settings":
-    st.sidebar.header("NightRide settings")
+elif page == "NightRide Explorer":
+    st.title("🚍 NightRide Explorer")
+    st.markdown("### 🔍 Hourly Passenger Load Patterns on NightRide Routes")
 
     # 1. Load and filter data
     data = time_extraction()
     default_routes = ["North", "South", "East", "Central"]
-    routes = st.sidebar.multiselect(
+
+    routes = st.multiselect(
         "Select NightRide routes to plot",
         options=default_routes,
         default=default_routes,
@@ -701,7 +711,7 @@ elif page == "NightRide Settings":
         alt.Chart(
             pd.DataFrame(
                 {
-                    "hour": [17.1],
+                    "hour": [16.1],
                     "passengerLoad": [agg["passengerLoad"].max() * 0.95],
                     "label": ["4 PM"],
                 }
@@ -719,3 +729,11 @@ elif page == "NightRide Settings":
 
     # 5. Show chart
     st.altair_chart(chart, use_container_width=True)
+
+    st.markdown("### 🔍 Key Takeaways")
+    st.markdown(
+        """
+        - Evening peak begins at 4 PM (16:00) for most NightRide routes, with load ramping up significantly after that time.
+        - The Central and East routes show the highest sustained demand between 16:00–21:00, indicating their role in transporting students during the evening.
+        """
+    )
