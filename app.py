@@ -41,6 +41,8 @@ startup()
 page = st.sidebar.radio(
     "Select Analysis Page:",
     [
+        "Welcome",
+        "About",
         "Rider Waiting Patterns by Stop",
         "Rider Waiting Patterns by Traffic Level",
         "Bus Stop Variance Explorer",
@@ -74,7 +76,71 @@ def normalize_stop(s: str) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-if page == "Rider Waiting Patterns by Stop":
+if page == "Welcome":
+    st.title("Welcome to the Spring DSI Clinic's UGo Shuttle Analysis")
+
+    st.markdown("""
+
+    Use the menu on the left to learn more this project on the **About Page** or to navigate to each analysis page.
+
+    ### Table of Contents
+
+    - **Rider Waiting Patterns by Stop**
+      - Explore stop-level delays with and without outliers.
+    - **Rider Waiting Patterns by Traffic Level**
+      - Investigate how traffic affects stop durations.
+    - **Bus Stop Variance Explorer**
+      - Investigate the consistency of arrivals of a given stop on a given route, calculated based on time between consecutive stop events.
+    - **Time Series Analysis**
+      - Track weekly ridership changes across days and weeks.
+    - **Bunching Exploration**
+      - Examine which buses are arriving closer together than scheduled.
+    - **Connector Bunching Map**
+      - Visualize bunching hotspots in the Downtown Connector route.
+    - **NightRide Explorer**
+      - Analyze ridership by hour for NightRide shuttles.
+
+    """)
+
+elif page == "About":
+    st.title("About Us")
+
+    st.markdown("""
+
+    This dashboard was created to better understand UGo shuttle rider waiting patterns with respect to time-of-day and location-specific effects.
+
+    You can find the full code repository here: [Github](https://github.com/dsi-clinic/2025-spring-uchicago-transportation)
+
+    ### Project Goals
+    - Use shuttle data to answer key questions related to patterns in rider wait times and service reliability.
+    - Help UChicago Transportation make informed, data-driven decisions about the UGo shuttles.
+
+    ### Meet the Team
+    - **Kristen Wallace** — 4th year undergraduate student, Data Science & Business Economics. [LinkedIn](https://www.linkedin.com/in/kristen-wallace-8094a01a3/)
+    - **Minjae Joh** — 3rd year undergradate student, Data Science & Linguistics
+    - **Leah Dimsu** — 3rd year undergradate student, Data Science & Business Economics
+    - **Luna Jian** — 2nd year graduate student, Computer Science & Public Policy
+
+    ### Data
+    The requisite files can be fetched from the uchicago Box, in file '2025-Spring-UChicago-Transportation'. If without access, please consult DSI for access to the data. Below is the link to the Box.
+
+    https://uchicago.app.box.com/folder/313087826266?s=8soop37anr53ivgllbiy6tp690syd5tz&tc=collab-folder-invite-treatment-b
+
+    The following files should be contained in this directory:
+
+    - ClinicDump-25-23-24-NumShuttlesRunning.csv
+    - ClinicDump-25-23-24-StopEvents.csv
+    - ClinicDump-NumShuttlesRunning.csv
+    - ClinicDump-StopEvents.csv
+
+    ### Tools Used
+    - Streamlit
+    - Python
+    - Google Maps API
+
+    """)
+
+elif page == "Rider Waiting Patterns by Stop":
     st.markdown("""
     **How to use this page:**
     1. Expand **Filters** to choose your **Route**, one or more **Stops**, and a **Time block**.
@@ -288,12 +354,12 @@ elif page == "Bus Stop Variance Explorer":
     stop_events_df = load_stop_events()
     stop_events_df = assign_expected_frequencies(stop_events_df)
 
-    st.sidebar.header("Frequency (in minutes)")
+    st.sidebar.header("Filter Options")
     frequencies = (
         stop_events_df["expectedFreq"].dropna().astype(int).sort_values().unique()
     )
     selected_freq = st.sidebar.selectbox(
-        "Select Expected Frequency:",
+        "Expected Frequency (min):",
         options=frequencies,
         format_func=lambda x: f"{x} min",
     )
@@ -302,23 +368,29 @@ elif page == "Bus Stop Variance Explorer":
     stop_events_df = stop_events_df[stop_events_df["expectedFreq"].notna()]
     _, variances, medians = process_arrival_times(stop_events_df)
 
-    st.title("Chicago Bus Stop Variance Explorer")
+    routes = variances["routeName"].unique()
+    selected_route = st.sidebar.selectbox("Route:", sorted(routes))
+
+    view = st.sidebar.radio(
+        "Metric:", ["Standard Deviation of Wait Time", "Median Wait Time"]
+    )
+
+    st.title("UGo Shuttle Variance Explorer")
 
     st.markdown("""
 
-    This page investigates the consistency of arrivals of a given stop on a given bus route.
-    Calculated based on time between consecutive stop events at each stop for every route.
-    - Use the dropdown selectbox to select a specific route, and view all the stops on that route.
-    - Use the sidebar to filter by expected frequency of arrivals.
-        - Ex. the South Loop Shuttle is expected every 60 minutes, you would find it under the 60 min view.
-        - Some routes have different expected frequencies during different times of day, so they appear under multiple filters.
-    - Explore patterns in standard deviation and median wait times across UGo shuttles.
+    This page investigates the consistency of arrivals of a given stop on a given bus route, calculated based on time between consecutive stop events at each stop for every route.
+
+    The sidebar has three filters:
+    - Expected frequency of arrivals, or how often a given shuttle is supposed to run
+    - The metric being calculated, either the standard deviation of wait times or the median
+    - The route being displayed, which will show all stops along that route
+        - Some routes have different expected frequencies during different times of day; their stop events are split under multiple filters.
+
+    Use this page to explore patterns in wait times across UGo shuttles. For example, the **Downtown Campus Connector** has an advertised median wait time of 20 minutes, but every stop has an observed wait time between 22 minutes (Goldblatt) and 41 minutes (Gleacher), making it rather unreliable.
 
     """)
 
-    routes = variances["routeName"].unique()
-    selected_route = st.selectbox("Select a route:", sorted(routes))
-    view = st.radio("View by:", ["Standard Deviation of Wait Time", "Median Wait Time"])
     if view == "Standard Deviation of Wait Time":
         data = variances[variances["routeName"] == selected_route].sort_values(
             by="arrival_stdev", ascending=False
@@ -344,7 +416,7 @@ elif page == "Bus Stop Variance Explorer":
             y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
             tooltip=["stopName", col],
         )
-        .properties(width=700, height=500, title=title),
+        .properties(width=700, height=500, title={"text": title, "anchor": "middle"}),
         use_container_width=True,
     )
 
