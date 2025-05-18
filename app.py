@@ -44,7 +44,7 @@ page = st.sidebar.radio(
         "Welcome",
         "About",
         "Rider Waiting Patterns by Stop",
-        "Rider Waiting Patterns by Traffic Level",
+        "Rider Waiting Patterns by Stop Frequency",
         "Bus Stop Variance Explorer",
         "Time Series Analysis",
         "Bunching Exploration",
@@ -118,7 +118,7 @@ elif page == "About":
     ### Meet the Team
     - **Kristen Wallace** — 4th year undergraduate student, Data Science & Business Economics. [LinkedIn](https://www.linkedin.com/in/kristen-wallace-8094a01a3/)
     - **Minjae Joh** — 3rd year undergradate student, Data Science & Linguistics
-    - **Leah Dimsu** — 3rd year undergradate student, Data Science & Business Economics
+    - **Leah Dimsu** — 3rd year undergradate student, Data Science & Business Economics [LinkedIn](https://www.linkedin.com/in/leah-dimsu/)
     - **Luna Jian** — 2nd year graduate student, Computer Science & Public Policy
 
     ### Data
@@ -141,40 +141,40 @@ elif page == "About":
     """)
 
 elif page == "Rider Waiting Patterns by Stop":
+    # ── Page header ─────────────────────────────────────────────────────────
+    st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Stop)")
     st.markdown("""
     **How to use this page:**
-    1. Expand **Filters** to choose your **Route**, one or more **Stops**, and a **Time block**.
-    2. **Top chart:** Average stop duration per stop (95th-pct outliers removed).
+    1. Choose your **Route**, one or more **Stops**, and a **Time block** from the **sidebar**.
+    2. The **top chart** shows average stop duration per stop (95th-pct outliers removed).
        - Holdover stops are highlighted in **yellow**.
-    3. **Bottom chart:** Average stop duration _across all_ time blocks for your selection.
-    4. Expand the **Outliers** section at the bottom to inspect individual events above the 95th percentile.
+    3. The **bottom chart** shows average stop duration _across all_ time blocks.
     """)
 
-    # ── Data load & filters ───────────────────────────────────────────────
+    # ── Data load ─────────────────────────────────────────────────────────────
     df_events = load_stop_events()
     df_events = add_time_blocks(df_events)
     df_events = add_traffic_flag(df_events)
 
-    with st.expander("🔍 Filters", expanded=False):
-        c1, c2, c3 = st.columns([2, 3, 2])
-        with c1:
-            routes = sorted(df_events["routeName"].dropna().unique())
-            selected_route = st.selectbox("Select Route:", routes)
-        with c2:
-            stops = (
-                df_events.query("routeName == @selected_route")["stopName"]
-                .dropna()
-                .unique()
-            )
-            selected_stops = st.multiselect("Select Stops:", sorted(stops))
-        with c3:
-            tblocks = sorted(df_events["timeBlock"].dropna().unique())
-            selected_time_block = st.selectbox("Select Time Period:", tblocks)
+    # ── Sidebar filters ───────────────────────────────────────────────────────
+    st.sidebar.header("Filter Options")
+    routes = sorted(df_events["routeName"].dropna().unique())
+    selected_route = st.sidebar.selectbox("Select Route:", routes)
 
+    stops = (
+        df_events.query("routeName == @selected_route")["stopName"].dropna().unique()
+    )
+    selected_stops = st.sidebar.multiselect("Select Stops:", sorted(stops))
+
+    tblocks = sorted(df_events["timeBlock"].dropna().unique())
+    selected_time_block = st.sidebar.selectbox("Select Time Period:", tblocks)
+
+    # ── Guard: must pick at least one stop ──────────────────────────────────
     if not selected_stops:
-        st.info("Please select at least one stop above to see the charts.")
+        st.info("Please select at least one stop to see the charts.")
         st.stop()
 
+    # ── Filter & convert durations ─────────────────────────────────────────
     filtered_events = df_events.query(
         "routeName == @selected_route "
         "and stopName in @selected_stops "
@@ -182,19 +182,19 @@ elif page == "Rider Waiting Patterns by Stop":
     ).copy()
     filtered_events["stopDurationMinutes"] = filtered_events["stopDurationSeconds"] / 60
 
-    # ── Outlier split ────────────────────────────────────────────────────
+    # ── Outlier split ───────────────────────────────────────────────────────
     thr = filtered_events["stopDurationMinutes"].quantile(0.95)
     core = filtered_events[filtered_events["stopDurationMinutes"] <= thr].copy()
     outliers = filtered_events[filtered_events["stopDurationMinutes"] > thr].copy()
 
-    # ── Holdover merge ───────────────────────────────────────────────────
+    # ── Holdover merge ──────────────────────────────────────────────────────
     # 1) normalize both sides
     core["route_key"] = core["routeName"].apply(normalize_route)
     core["stop_key"] = core["stopName"].apply(normalize_stop)
     core["stop_key"] = core["stop_key"].replace(
         {
             "logan cneter": "logan center for arts",
-            "logan center": "logan center for arts",  ##catch misspelling
+            "logan center": "logan center for arts",
             "drexel garage": "drexel garage",
         }
     )
@@ -203,30 +203,22 @@ elif page == "Rider Waiting Patterns by Stop":
     hold["route_key"] = hold["route"].apply(normalize_route)
     hold["stop_key"] = hold["holdover_stop"].apply(normalize_stop)
 
-    # 2) patch in our handful of special cases
-    special_stop_map = {
-        "law": "law school",  # “Law” → “Law School (N)”
-        "goldblatt pavillion": "goldblatt pavilion",  # fix typo
-        "60th and ellis": "60th st. and ellis",  # drop “(SE Corner)”
-        "logan cneter": "logan center for arts",  # catch misspelling
-        "logan center": "logan center for arts",  # proper name
+    # 2) patch our special cases twice (typo + proper name)
+    special = {
+        "law": "law school",
+        "goldblatt pavillion": "goldblatt pavilion",
+        "60th and ellis": "60th st. and ellis",
+        "logan cneter": "logan center for arts",
+        "logan center": "logan center for arts",
     }
-    hold["stop_key"] = hold["stop_key"].replace(special_stop_map)
-    hold["stop_key"] = hold["stop_key"].replace(special_stop_map)
+    hold["stop_key"] = hold["stop_key"].replace(special)
+    hold["stop_key"] = hold["stop_key"].replace(special)
 
-    # 3) merge on the unified keys
-    merged = core.merge(
-        hold,
-        how="left",
-        on=["route_key", "stop_key"],
-    )
-
-    # 4) flag holdovers
+    # 3) merge & flag
+    merged = core.merge(hold, how="left", on=["route_key", "stop_key"])
     merged["isHoldover"] = merged["durationMinutes"].fillna(0) > 0
 
-    # ── Charts ────────────────────────────────────────────────────────────
-
-    # Avg by Stop
+    # ── Chart 1: Avg by Stop ────────────────────────────────────────────────
     avg_stop = (
         merged.groupby(["stopName", "isHoldover"])["stopDurationMinutes"]
         .mean()
@@ -251,18 +243,14 @@ elif page == "Rider Waiting Patterns by Stop":
         )
         .properties(title="Avg Stop Duration (Holdovers in Yellow)", height=400)
     )
-    st.altair_chart(chart1, use_container_width=True, key="avg_by_stop")
+    st.altair_chart(chart1, use_container_width=True)
 
-    # ── Avg by Time Block  ────────────────
+    # ── Chart 2: Avg by Time Block ─────────────────────────────────────────
     avg_time = (
         filtered_events.groupby("timeBlock")["stopDurationMinutes"].mean().reset_index()
     )
-
     mx = avg_time["stopDurationMinutes"].max()
-    if not math.isnan(mx):
-        y_scale = alt.Scale(domain=[0, mx * 1.1])
-    else:
-        y_scale = alt.Scale()
+    y_scale = alt.Scale(domain=[0, mx * 1.1]) if not math.isnan(mx) else alt.Scale()
 
     chart2 = (
         alt.Chart(avg_time)
@@ -282,51 +270,94 @@ elif page == "Rider Waiting Patterns by Stop":
             padding={"left": 50, "right": 10, "top": 20, "bottom": 80},
         )
     )
-
-    st.write("")
-    st.altair_chart(chart2, use_container_width=True, key="avg_by_time")
+    st.write("")  # spacing
+    st.altair_chart(chart2, use_container_width=True)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-elif page == "Rider Waiting Patterns by Traffic Level":
-    df_events = load_stop_events()
-    df_events = add_time_blocks(df_events)
-    df_events = add_traffic_flag(df_events)
+elif page == "Rider Waiting Patterns by Stop Frequency":
+    # ── Load & preprocess ─────────────────────────────
+    events_df = load_stop_events()
+    events_df = add_time_blocks(events_df)
 
-    selected_time_block = st.selectbox(
-        "Select Time Period for Analysis:",
-        options=sorted(df_events["timeBlock"].dropna().unique()),
+    # ── Page header ─────────────────────────────────────
+    st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Stop Frequency)")
+    st.markdown("""
+    **How to use this page:**
+    1. Pick a **Time block** in the sidebar.
+    2. The **first chart** shows how many stops fall into each frequency bucket.
+    3. The **second chart** shows the distribution of stop durations by frequency (outliers in red).
+    """)
+
+    # ── Sidebar filter ───────────────────────────────────
+    st.sidebar.header("Filter Options")
+    time_blocks = sorted(events_df["timeBlock"].dropna().unique())
+    selected_time_block = st.sidebar.selectbox("Select Time Period:", time_blocks)
+
+    # ── Filter + convert durations ───────────────────────
+    filtered_df = events_df[events_df["timeBlock"] == selected_time_block].assign(
+        stopDurationMinutes=lambda d: d["stopDurationSeconds"] / 60
     )
-    df2 = df_events[df_events["timeBlock"] == selected_time_block].copy()
-    df2["stopDurationMinutes"] = df2["stopDurationSeconds"] / 60
 
-    thr2 = df2["stopDurationMinutes"].quantile(0.95)
-    df2["isOutlier"] = df2["stopDurationMinutes"] > thr2
-
-    st.markdown(
-        f"> **Note:** {df2['isOutlier'].sum()} events exceed {thr2:.1f} min and are flagged as outliers."
+    # ── Compute each stop’s average daily visit count ────
+    daily_counts = (
+        filtered_df.groupby(["stopName", filtered_df["arrivalTime"].dt.date])
+        .size()
+        .reset_index(name="daily_count")
     )
-    st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Traffic Level)")
+    avg_freq = (
+        daily_counts.groupby("stopName")["daily_count"]
+        .mean()
+        .reset_index(name="avg_daily_count")
+    )
 
-    chart3 = (
-        alt.Chart(df2)
+    # ── Bucket stops by median frequency ────────────────
+    median_freq = avg_freq["avg_daily_count"].median()
+    avg_freq["usageCategory"] = avg_freq["avg_daily_count"].apply(
+        lambda x: "High Frequency" if x > median_freq else "Low Frequency"
+    )
+
+    # ── Chart 1: Number of stops by frequency bucket ───
+    stops_per_cat = (
+        avg_freq.groupby("usageCategory")["stopName"]
+        .nunique()
+        .reset_index(name="num_stops")
+    )
+    chart1 = (
+        alt.Chart(stops_per_cat)
         .mark_bar()
         .encode(
             x=alt.X(
-                "trafficFlag:N", sort=["low", "mid", "high"], title="Traffic Level"
+                "usageCategory:N",
+                sort=["Low Frequency", "High Frequency"],
+                title="Stop Frequency Category",
             ),
-            y=alt.Y("count():Q", title="Number of Stops"),
-            tooltip=["trafficFlag", "count()"],
+            y=alt.Y("num_stops:Q", title="Number of Stops"),
+            tooltip=["usageCategory", "num_stops"],
         )
-        .properties(title="Number of Stops by Traffic Level", width=900, height=400)
+        .properties(
+            title="Number of Stops by Frequency Category", width=900, height=400
+        )
     )
-    st.altair_chart(chart3, use_container_width=True)
+    st.altair_chart(chart1, use_container_width=True)
 
-    chart4 = (
-        alt.Chart(df2)
+    # ── Chart 2: Stop durations by frequency bucket ───
+    thr = filtered_df["stopDurationMinutes"].quantile(0.95)
+    filtered_df["isOutlier"] = filtered_df["stopDurationMinutes"] > thr
+
+    merged_df = filtered_df.merge(
+        avg_freq[["stopName", "usageCategory"]], on="stopName", how="left"
+    )
+
+    chart2 = (
+        alt.Chart(merged_df)
         .mark_point(filled=True, size=60, opacity=0.6)
         .encode(
-            x=alt.X("trafficFlag:N", title="Traffic Level"),
+            x=alt.X(
+                "usageCategory:N",
+                sort=["Low Frequency", "High Frequency"],
+                title="Stop Frequency Category",
+            ),
             y=alt.Y("stopDurationMinutes:Q", title="Stop Duration (min)"),
             color=alt.Color(
                 "isOutlier:N",
@@ -336,18 +367,25 @@ elif page == "Rider Waiting Patterns by Traffic Level":
             tooltip=[
                 "stopName",
                 "stopDurationMinutes",
-                "trafficFlag",
+                "usageCategory",
                 "timeBlock",
                 "isOutlier",
             ],
         )
         .properties(
-            title="Stop Durations by Traffic Level (outliers in red)",
+            title="Stop Durations by Frequency Category (outliers in red)",
             width=900,
             height=400,
         )
     )
-    st.altair_chart(chart4, use_container_width=True)
+    st.altair_chart(chart2, use_container_width=True)
+
+    # ── Key Takeaways ────────────────────────────────────
+    st.markdown("### Key Takeaways")
+    st.markdown("""
+    - **High-frequency** stops (served more often per day) tend to have **shorter** average wait times.
+    - **Low-frequency** stops exhibit **wider variability** and more extreme delays.
+    """)
 
 
 elif page == "Bus Stop Variance Explorer":
