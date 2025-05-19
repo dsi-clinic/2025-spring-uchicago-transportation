@@ -1,5 +1,20 @@
 # Define constants
 
+ifneq ("$(wildcard .env)","")
+    include .env
+    export $(shell sed 's/=.*//' .env)
+else
+    $(error .env file not found. Please create one before running this Makefile.)
+endif
+
+GOOGLE_MAP_KEY := $(strip $(shell echo $(GOOGLE_MAP_KEY) | tr '[:upper:]' '[:lower:]'))
+# Add after the .env loading section
+ifeq ($(GOOGLE_MAP_KEY),)
+    $(error GOOGLE_MAP_KEY is not set in .env file.')
+endif
+
+
+
 # general
 mkfile_path := $(abspath $(firstword $(MAKEFILE_LIST)))
 current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
