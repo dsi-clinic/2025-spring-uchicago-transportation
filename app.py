@@ -131,9 +131,7 @@ elif page == "About":
     - **Luna Jian** — 2nd year graduate student, Computer Science & Public Policy [LinkedIn](https://www.linkedin.com/in/1yuejian/)
 
     ### Data
-    The requisite files can be fetched from the uchicago Box, in file '2025-Spring-UChicago-Transportation'. If without access, please consult DSI for access to the data. Below is the link to the Box.
-
-    https://uchicago.app.box.com/folder/313087826266?s=8soop37anr53ivgllbiy6tp690syd5tz&tc=collab-folder-invite-treatment-b
+    The requisite files can be fetched from the uchicago Box, in file '2025-Spring-UChicago-Transportation'. If without access, please consult DSI for access to the data. [Box folder](https://uchicago.app.box.com/folder/313087826266?s=8soop37anr53ivgllbiy6tp690syd5tz&tc=collab-folder-invite-treatment-b)
 
     The following files should be contained in this directory:
 
