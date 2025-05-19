@@ -862,3 +862,52 @@ elif page == "NightRide Explorer":
         - The Central and East routes show the highest sustained demand between 16:00–21:00, indicating their role in transporting students during the evening.
         """
     )
+
+    st.markdown("## 🛑 Top Stops by Total Passenger Load")
+
+    # 6. Aggregate passenger load by stop
+    top_stops = (
+        filtered.groupby("stopName", as_index=False)
+        .agg({"passengerLoad": "sum"})
+        .sort_values("passengerLoad", ascending=False)
+        .head(10)  # Top 10 stops
+    )
+
+    bar_chart = (
+        alt.Chart(top_stops)
+        .mark_bar()
+        .encode(
+            x=alt.X("passengerLoad:Q", title="Total Passenger Load"),
+            y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
+            tooltip=["stopName", "passengerLoad"],
+        )
+        .properties(title="Top 10 Most Popular Stops (by Total Passenger Load)")
+    )
+
+    st.altair_chart(bar_chart, use_container_width=True)
+
+    # 6. Filter data for late-night hours only (23:00 and later)
+    LATE_NIGHT_START_HOUR = 23
+    late_night = filtered[filtered["hour"] >= LATE_NIGHT_START_HOUR]
+
+    # 7. Aggregate passenger load by stop
+    top_late_stops = (
+        late_night.groupby("stopName", as_index=False)
+        .agg({"passengerLoad": "sum"})
+        .sort_values("passengerLoad", ascending=False)
+        .head(10)  # Show top 10 stops
+    )
+
+    # 8. Create bar chart
+    bar_late_night = (
+        alt.Chart(top_late_stops)
+        .mark_bar()
+        .encode(
+            x=alt.X("passengerLoad:Q", title="Total Passenger Load"),
+            y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
+            tooltip=["stopName", "passengerLoad"],
+        )
+        .properties(title="Top 10 Most Popular Stops After 11 PM")
+    )
+
+    st.altair_chart(bar_late_night, use_container_width=True)
