@@ -34,9 +34,9 @@ st.sidebar.markdown(
         <h1 style='margin-top: 10px;'>UGo Shuttle Analysis</h1>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
-#st.sidebar.title("UGo Shuttle Analysis")
+# st.sidebar.title("UGo Shuttle Analysis")
 
 
 @st.cache_resource()
