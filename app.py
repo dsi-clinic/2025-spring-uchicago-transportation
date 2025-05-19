@@ -155,8 +155,8 @@ elif page == "Stop Wait Patterns":
     st.markdown("### Key Takeaways")
     st.markdown("""
     - Some **non-holdover** stops actually have **longer** average stop durations than known holdover stops.
-      - On the **South** route, **Cottage Grove & 60th** and **Woodlawn Ave & 63rd** both exceed the average dwell time at **Logan Center** (a holdover).
-      - On the **Red Line/Arts Block** route, **Garfield & Wabash** exceeds the duration at **Garfield Red Line/Logan Center** (holdover).
+      - On the **South** route, **Cottage Grove & 60th** and **Woodlawn Ave & 63rd** both exceed the average dwell time at **60th St & Ellis** (a holdover).
+      - On the **Red Line/Arts Block** route, **Garfield Redline Station(WB), Midway Plaisance and Cottage Grove, Ellis/57th, and Institute for Study of Ancient Cultures** exceeds the duration at **Garfield Red Line/Logan Center** (holdover).
     """)
 
     # ── Data load ─────────────────────────────────────────────────────────────
