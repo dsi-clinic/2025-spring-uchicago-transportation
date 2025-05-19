@@ -117,7 +117,7 @@ elif page == "About":
 
     ### Meet the Team
     - **Kristen Wallace** — 4th year undergraduate student, Data Science & Business Economics. [LinkedIn](https://www.linkedin.com/in/kristen-wallace-8094a01a3/)
-    - **Minjae Joh** — 3rd year undergradate student, Data Science & Linguistics
+    - **Minjae Joh** — 3rd year undergradate student, Data Science & Linguistics. [LinkedIn](https://www.linkedin.com/in/minjae-joh-73b840210/)
     - **Leah Dimsu** — 3rd year undergradate student, Data Science & Business Economics [LinkedIn](https://www.linkedin.com/in/leah-dimsu/)
     - **Luna Jian** — 2nd year graduate student, Computer Science & Public Policy
 
