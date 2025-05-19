@@ -27,7 +27,16 @@ load_dotenv()
 
 # ── Page config & startup ───────────────────────────────────────────────────
 st.set_page_config(page_title="UGo Shuttle Analysis Dashboard", layout="wide")
-st.sidebar.title("UGo Shuttle Analysis")
+st.sidebar.markdown(
+    """
+    <div style='text-align: left; padding-bottom: 10px;'>
+        <img src='https://i0.wp.com/biocars.uchicago.edu/wp-content/uploads/2019/05/cropped-logo.png?ssl=1' width='80'>
+        <h1 style='margin-top: 10px;'>UGo Shuttle Analysis</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+#st.sidebar.title("UGo Shuttle Analysis")
 
 
 @st.cache_resource()
@@ -116,10 +125,10 @@ elif page == "About":
     - Help UChicago Transportation make informed, data-driven decisions about the UGo shuttles.
 
     ### Meet the Team
-    - **Kristen Wallace** — 4th year undergraduate student, Data Science & Business Economics. [LinkedIn](https://www.linkedin.com/in/kristen-wallace-8094a01a3/)
+    - **Kristen Wallace** — 4th year undergraduate student, Data Science & Business Economics [LinkedIn](https://www.linkedin.com/in/kristen-wallace-8094a01a3/)
     - **Minjae Joh** — 3rd year undergradate student, Data Science & Linguistics
     - **Leah Dimsu** — 3rd year undergradate student, Data Science & Business Economics [LinkedIn](https://www.linkedin.com/in/leah-dimsu/)
-    - **Luna Jian** — 2nd year graduate student, Computer Science & Public Policy
+    - **Luna Jian** — 2nd year graduate student, Computer Science & Public Policy [LinkedIn](https://www.linkedin.com/in/1yuejian/)
 
     ### Data
     The requisite files can be fetched from the uchicago Box, in file '2025-Spring-UChicago-Transportation'. If without access, please consult DSI for access to the data. Below is the link to the Box.
