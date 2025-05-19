@@ -761,8 +761,6 @@ elif page == "NightRide Explorer":
 
     st.altair_chart(bar_chart, use_container_width=True)
 
-    st.markdown("### 🌙 Top Stops by Total Passenger Load After 11 PM")
-
     # 6. Filter data for late-night hours only (23:00 and later)
     LATE_NIGHT_START_HOUR = 23
     late_night = filtered[filtered["hour"] >= LATE_NIGHT_START_HOUR]
