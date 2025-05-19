@@ -754,17 +754,18 @@ elif page == "NightRide Explorer":
         .encode(
             x=alt.X("passengerLoad:Q", title="Total Passenger Load"),
             y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
-            tooltip=["stopName", "passengerLoad"]
+            tooltip=["stopName", "passengerLoad"],
         )
         .properties(title="Top 10 Most Popular Stops (by Total Passenger Load)")
     )
 
     st.altair_chart(bar_chart, use_container_width=True)
-    
+
     st.markdown("### 🌙 Top Stops by Total Passenger Load After 11 PM")
 
     # 6. Filter data for late-night hours only (23:00 and later)
-    late_night = filtered[filtered["hour"] >= 23]
+    LATE_NIGHT_START_HOUR = 23
+    late_night = filtered[filtered["hour"] >= LATE_NIGHT_START_HOUR]
 
     # 7. Aggregate passenger load by stop
     top_late_stops = (
@@ -781,7 +782,7 @@ elif page == "NightRide Explorer":
         .encode(
             x=alt.X("passengerLoad:Q", title="Total Passenger Load"),
             y=alt.Y("stopName:N", sort="-x", title="Stop Name"),
-            tooltip=["stopName", "passengerLoad"]
+            tooltip=["stopName", "passengerLoad"],
         )
         .properties(title="Top 10 Most Popular Stops After 11 PM")
     )
