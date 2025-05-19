@@ -43,8 +43,8 @@ page = st.sidebar.radio(
     [
         "Welcome",
         "About",
-        "Rider Waiting Patterns by Stop",
-        "Rider Waiting Patterns by Stop Frequency",
+        "Stop Wait Patterns",
+        "Frequency vs. Wait",
         "Bus Stop Variance Explorer",
         "Time Series Analysis",
         "Bunching Exploration",
@@ -85,10 +85,10 @@ if page == "Welcome":
 
     ### Table of Contents
 
-    - **Rider Waiting Patterns by Stop**
-      - Explore stop-level delays with and without outliers.
-    - **Rider Waiting Patterns by Traffic Level**
-      - Investigate how traffic affects stop durations.
+    - **Stop Wait Patterns**
+      - Select a route, time block, and stops to compare their average dwell times, highlighting holdovers.
+    - **Frequency vs Wait**
+      - Plot each stop’s average daily service frequency against its average wait time, with a trend line to reveal their relationship.
     - **Bus Stop Variance Explorer**
       - Investigate the consistency of arrivals of a given stop on a given route, calculated based on time between consecutive stop events.
     - **Time Series Analysis**
@@ -140,7 +140,7 @@ elif page == "About":
 
     """)
 
-elif page == "Rider Waiting Patterns by Stop":
+elif page == "Stop Wait Patterns":
     # ── Page header ─────────────────────────────────────────────────────────
     st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Stop)")
     st.markdown("""
@@ -149,6 +149,14 @@ elif page == "Rider Waiting Patterns by Stop":
     2. The **top chart** shows average stop duration per stop (95th-pct outliers removed).
        - Holdover stops are highlighted in **yellow**.
     3. The **bottom chart** shows average stop duration _across all_ time blocks.
+    """)
+
+    # ── Key Takeaways ───────────────────────────────────────────────────────
+    st.markdown("### Key Takeaways")
+    st.markdown("""
+    - Some **non-holdover** stops actually have **longer** average stop durations than known holdover stops.
+      - On the **South** route, **Cottage Grove & 60th** and **Woodlawn Ave & 63rd** both exceed the average dwell time at **60th St & Ellis** (a holdover).
+      - On the **Red Line/Arts Block** route, **Garfield Redline Station(WB), Midway Plaisance and Cottage Grove, Ellis/57th, and Institute for Study of Ancient Cultures** exceeds the duration at **Garfield Red Line/Logan Center** (holdover).
     """)
 
     # ── Data load ─────────────────────────────────────────────────────────────
@@ -203,7 +211,7 @@ elif page == "Rider Waiting Patterns by Stop":
     hold["route_key"] = hold["route"].apply(normalize_route)
     hold["stop_key"] = hold["holdover_stop"].apply(normalize_stop)
 
-    # 2) patch our special cases twice (typo + proper name)
+    # 2) patch special cases twice (typo + proper name)
     special = {
         "law": "law school",
         "goldblatt pavillion": "goldblatt pavilion",
@@ -275,116 +283,132 @@ elif page == "Rider Waiting Patterns by Stop":
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-elif page == "Rider Waiting Patterns by Stop Frequency":
-    # ── Load & preprocess ─────────────────────────────
+elif page == "Frequency vs. Wait":
     events_df = load_stop_events()
     events_df = add_time_blocks(events_df)
 
-    # ── Page header ─────────────────────────────────────
-    st.title("🚍 UGo Shuttle Rider Waiting Patterns (By Stop Frequency)")
+    # ── Page header ─────────────────────────────────────────────────────
+    st.title("🚍 UGo Shuttle: Stop Frequency vs. Wait Time")
     st.markdown("""
     **How to use this page:**
     1. Pick a **Time block** in the sidebar.
-    2. The **first chart** shows how many stops fall into each frequency bucket.
-    3. The **second chart** shows the distribution of stop durations by frequency (outliers in red).
+    2. Chart 1 shows how many stops fall into each service-frequency band.
+    3. Chart 2 shows each stop’s average daily frequency vs. its average wait time.
     """)
 
-    # ── Sidebar filter ───────────────────────────────────
+    # ── Sidebar filter ───────────────────────────────────────────────────
     st.sidebar.header("Filter Options")
     time_blocks = sorted(events_df["timeBlock"].dropna().unique())
     selected_time_block = st.sidebar.selectbox("Select Time Period:", time_blocks)
 
-    # ── Filter + convert durations ───────────────────────
-    filtered_df = events_df[events_df["timeBlock"] == selected_time_block].assign(
-        stopDurationMinutes=lambda d: d["stopDurationSeconds"] / 60
+    # ── Filter & convert wait to minutes ────────────────────────────────
+    block_df = events_df[events_df["timeBlock"] == selected_time_block].assign(
+        waitMin=lambda d: d["stopDurationSeconds"] / 60
     )
+    clip_val = block_df["waitMin"].quantile(0.95)
+    core_df = block_df[block_df["waitMin"] <= clip_val].copy()
 
-    # ── Compute each stop’s average daily visit count ────
+    # ── Compute per-stop avg daily visits & avg wait ────────────────────
     daily_counts = (
-        filtered_df.groupby(["stopName", filtered_df["arrivalTime"].dt.date])
+        core_df.groupby(["stopName", core_df["arrivalTime"].dt.date])
         .size()
         .reset_index(name="daily_count")
     )
-    avg_freq = (
+    stats = (
         daily_counts.groupby("stopName")["daily_count"]
         .mean()
         .reset_index(name="avg_daily_count")
+        .merge(
+            core_df.groupby("stopName")["waitMin"].mean().reset_index(name="avg_wait"),
+            on="stopName",
+        )
     )
 
-    # ── Bucket stops by median frequency ────────────────
-    median_freq = avg_freq["avg_daily_count"].median()
-    avg_freq["usageCategory"] = avg_freq["avg_daily_count"].apply(
-        lambda x: "High Frequency" if x > median_freq else "Low Frequency"
+    # ── Bucket into frequency bands ──────────────────────
+    RARE_THRESHOLD = 2
+    OCCASIONAL_THRESHOLD = 6
+    FREQUENT_THRESHOLD = 12
+
+    # ── Bucket into human-readable frequency bands ──────────────────────────
+    def bucket(freq: float) -> str:
+        """Return a service-frequency band name based on average daily visit count."""
+        if freq < RARE_THRESHOLD:
+            return "Rare (<2/day)"
+        elif freq < OCCASIONAL_THRESHOLD:
+            return "Occasional (2–5/day)"
+        elif freq < FREQUENT_THRESHOLD:
+            return "Frequent (6–11/day)"
+        else:
+            return "Very Frequent (12+/day)"
+
+    stats["freqBucket"] = stats["avg_daily_count"].apply(bucket)
+    band_order = [
+        "Rare (<2/day)",
+        "Occasional (2–5/day)",
+        "Frequent (6–11/day)",
+        "Very Frequent (12+/day)",
+    ]
+    band_counts = (
+        stats.groupby("freqBucket")
+        .size()
+        .reindex(band_order, fill_value=0)
+        .rename_axis("Frequency Band")
+        .reset_index(name="Num Stops")
     )
 
-    # ── Chart 1: Number of stops by frequency bucket ───
-    stops_per_cat = (
-        avg_freq.groupby("usageCategory")["stopName"]
-        .nunique()
-        .reset_index(name="num_stops")
-    )
+    # ── Chart 1: Bar chart with full labels ──────────────────────────────
     chart1 = (
-        alt.Chart(stops_per_cat)
+        alt.Chart(band_counts)
         .mark_bar()
         .encode(
             x=alt.X(
-                "usageCategory:N",
-                sort=["Low Frequency", "High Frequency"],
-                title="Stop Frequency Category",
+                "Frequency Band:N",
+                sort=band_order,
+                title="Service Frequency Band",
+                axis=alt.Axis(
+                    labelAngle=0,
+                    labelAlign="center",
+                    labelFontSize=12,
+                    titleFontSize=14,
+                    labelLimit=200,
+                ),
             ),
-            y=alt.Y("num_stops:Q", title="Number of Stops"),
-            tooltip=["usageCategory", "num_stops"],
+            y=alt.Y(
+                "Num Stops:Q",
+                title="Number of Stops",
+                axis=alt.Axis(labelFontSize=12, titleFontSize=14),
+            ),
+            tooltip=["Frequency Band", "Num Stops"],
         )
         .properties(
-            title="Number of Stops by Frequency Category", width=900, height=400
+            title={"text": "Stops by Service Frequency Band", "fontSize": 16},
+            width=700,
+            height=300,
         )
     )
     st.altair_chart(chart1, use_container_width=True)
 
-    # ── Chart 2: Stop durations by frequency bucket ───
-    thr = filtered_df["stopDurationMinutes"].quantile(0.95)
-    filtered_df["isOutlier"] = filtered_df["stopDurationMinutes"] > thr
-
-    merged_df = filtered_df.merge(
-        avg_freq[["stopName", "usageCategory"]], on="stopName", how="left"
+    # ── Chart 2: Scatter of frequency vs. wait with trend line ──────────
+    base = alt.Chart(stats).encode(
+        x=alt.X("avg_daily_count:Q", title="Avg Daily Stop Visits"),
+        y=alt.Y("avg_wait:Q", title="Avg Wait (min)"),
+        tooltip=["stopName", "avg_daily_count", "avg_wait"],
     )
-
-    chart2 = (
-        alt.Chart(merged_df)
-        .mark_point(filled=True, size=60, opacity=0.6)
-        .encode(
-            x=alt.X(
-                "usageCategory:N",
-                sort=["Low Frequency", "High Frequency"],
-                title="Stop Frequency Category",
-            ),
-            y=alt.Y("stopDurationMinutes:Q", title="Stop Duration (min)"),
-            color=alt.Color(
-                "isOutlier:N",
-                scale=alt.Scale(domain=[False, True], range=["steelblue", "firebrick"]),
-                legend=alt.Legend(title="Outlier"),
-            ),
-            tooltip=[
-                "stopName",
-                "stopDurationMinutes",
-                "usageCategory",
-                "timeBlock",
-                "isOutlier",
-            ],
-        )
-        .properties(
-            title="Stop Durations by Frequency Category (outliers in red)",
-            width=900,
-            height=400,
-        )
+    points = base.mark_point(size=60, opacity=0.6)
+    trend = base.transform_regression("avg_daily_count", "avg_wait").mark_line(
+        color="red"
     )
-    st.altair_chart(chart2, use_container_width=True)
+    scatter = (points + trend).properties(
+        title="Stop Frequency vs. Average Wait", width=700, height=400
+    )
+    st.altair_chart(scatter, use_container_width=True)
 
-    # ── Key Takeaways ────────────────────────────────────
+    # ── Key Takeaways ────────────────────────────────────────────────────
     st.markdown("### Key Takeaways")
     st.markdown("""
-    - **High-frequency** stops (served more often per day) tend to have **shorter** average wait times.
-    - **Low-frequency** stops exhibit **wider variability** and more extreme delays.
+    - The **Frequent (6–11/day)** band contains the largest share of stops.
+    - The **downward trend** confirms that stops served more often generally have shorter waits.
+    - **Rare (<2/day)** stops suffer the longest waits, indicating potential service gaps.
     """)
 
 
